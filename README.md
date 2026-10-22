@@ -80,6 +80,10 @@ npm run db:seed      # popula dados de teste (idempotente — reexecutar não du
   mesma importação rodada duas vezes nunca duplica uma transação.
 - `categorization.ts`: casamento de regras por substring; vence o padrão
   mais longo (mais específico).
+- `budget-rule.ts`: regra 50/30/20 sobre as receitas do período —
+  Necessidades/Desejos pela natureza das categorias, Poupança = aportes +
+  sobra; recomenda 60/20/20 ou 70/20/10 quando o custo fixo não cabe em
+  50% e distribui os cortes sugeridos entre os Desejos.
 - `ai-categorizer.ts`: categorização pelo Claude (saída estruturada) do que
   as regras não resolveram. Só envia data, valor e a descrição com números
   longos e e-mails mascarados; sugestões de confiança baixa ficam para
@@ -107,8 +111,9 @@ Dashboard (KPIs, fluxo de caixa realizado vs. projetado, despesas por
 categoria), Extrato (dropzone de OFX, tabela de alta densidade, ações em
 lote), Revisar (fila do que ficou sem categoria, botão "Categorizar com
 IA", natureza N/D/P das categorias e regras automáticas), Contas (grid de contas + módulo de cartão de crédito com régua de
-fatura e parcelamentos ativos) e Orçamentos (progresso por categoria com
-alerta de ritmo de queima acelerado).
+fatura e parcelamentos ativos) e Orçamentos (regra 50/30/20 do período com
+cortes sugeridos, e progresso por categoria com alerta de ritmo de queima
+acelerado).
 
 ## Segurança
 

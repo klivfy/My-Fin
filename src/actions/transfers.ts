@@ -19,7 +19,7 @@ const createTransferSchema = z
     message: "A conta de origem e destino não podem ser a mesma.",
     path: ["destinationAccountId"],
   })
-  .refine((data) => data.amount.isPositive(), {
+  .refine((data) => data.amount.gt(0), {
     message: "O valor da transferência deve ser positivo.",
     path: ["amount"],
   });

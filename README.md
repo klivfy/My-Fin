@@ -57,6 +57,9 @@ npm run db:seed      # popula dados de teste (idempotente — reexecutar não du
 - **Category**: hierárquica (auto-relação `parentId`), com `budgetLimit`
   mensal opcional (alimenta a tela de Orçamentos) e `nature`
   (Necessidade/Desejo/Poupança, base da regra 50/30/20).
+- **SavingsGoal**: meta de poupança; o progresso vem do saldo da conta
+  vinculada (uma conta financia no máximo uma meta) ou dos aportes
+  registrados (`savedAmount`).
 - **RecurrenceIgnore**: chaves de estabelecimento que o usuário marcou
   como "não é recorrente" (a detecção em si é recalculada das transações).
 - **CategorizationRule**: trecho da descrição normalizada → categoria,
@@ -86,6 +89,10 @@ npm run db:seed      # popula dados de teste (idempotente — reexecutar não du
   meses de calendário, e anuais) com confiança A/M/B, e monta o calendário
   de contas do mês (pago / a vencer / atrasado). Parcelamentos e gastos
   frequentes ficam de fora; confiança baixa vira "confira", nunca conta.
+- `savings-goal.ts`: sobra real (média dos últimos 3 meses completos,
+  sem o mês corrente nem o primeiro mês do extrato), reserva de emergência
+  sugerida (6× Necessidades), aporte sugerido (80% da sobra) e plano da
+  meta com marcos de 25/50/75/100% e viabilidade da data-alvo.
 - `budget-rule.ts`: regra 50/30/20 sobre as receitas do período —
   Necessidades/Desejos pela natureza das categorias, Poupança = aportes +
   sobra; recomenda 60/20/20 ou 70/20/10 quando o custo fixo não cabe em
@@ -119,8 +126,12 @@ lote), Revisar (fila do que ficou sem categoria, botão "Categorizar com
 IA", natureza N/D/P das categorias e regras automáticas), Recorrentes
 (calendário de contas do mês e assinaturas com custo anual), Contas (grid de contas + módulo de cartão de crédito com régua de
 fatura e parcelamentos ativos) e Orçamentos (regra 50/30/20 do período com
-cortes sugeridos, e progresso por categoria com alerta de ritmo de queima
-acelerado).
+cortes sugeridos, metas de poupança com marcos, e progresso por categoria
+com alerta de ritmo de queima acelerado).
+
+Erros esperados das Server Actions (validação, regra de negócio) voltam
+como `ActionResult` (`src/lib/action-result.ts`): em produção o Next não
+repassa ao navegador a mensagem de um erro lançado numa Server Action.
 
 ## Segurança
 

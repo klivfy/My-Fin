@@ -113,6 +113,7 @@ model Account {
   creditCardInvoices CreditCardInvoice[]
   transfersOut       Transfer[]          @relation("TransferSource")
   transfersIn        Transfer[]          @relation("TransferDestination")
+  savingsGoal        SavingsGoal?
 
   @@index([type])
   @@index([isActive])
@@ -172,6 +173,31 @@ model CategorizationRule {
 
   @@index([categoryId])
   @@map("categorization_rules")
+}
+
+// ----------------------------------------------------------------------------
+// SavingsGoal
+// ----------------------------------------------------------------------------
+
+/// Meta de poupança (ex.: reserva de emergência). O progresso vem do saldo
+/// da conta vinculada (`accountId`, ex.: a Poupança) quando houver; sem
+/// conta vinculada, de `savedAmount`, atualizado pelos aportes registrados.
+/// Uma conta financia no máximo uma meta, para o saldo não contar duas vezes.
+model SavingsGoal {
+  id String @id @default(uuid())
+
+  name         String
+  targetAmount Decimal   @db.Decimal(12, 2)
+  savedAmount  Decimal   @default(0) @db.Decimal(12, 2)
+  targetDate   DateTime?
+
+  accountId String?  @unique
+  account   Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("savings_goals")
 }
 
 // ----------------------------------------------------------------------------

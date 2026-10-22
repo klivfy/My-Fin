@@ -5,6 +5,7 @@ import { FormEvent, Suspense, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { safeNextPath } from "@/lib/safe-redirect";
 
 function LoginForm() {
   const router = useRouter();
@@ -20,11 +21,15 @@ function LoginForm() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ token }),
     });
+    if (response.status === 429) {
+      setError("Muitas tentativas. Aguarde alguns minutos e tente de novo.");
+      return;
+    }
     if (!response.ok) {
       setError("Token inválido.");
       return;
     }
-    router.replace(searchParams.get("next") || "/");
+    router.replace(safeNextPath(searchParams.get("next")));
     router.refresh();
   }
 

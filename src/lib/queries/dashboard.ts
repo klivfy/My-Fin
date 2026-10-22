@@ -1,4 +1,5 @@
 import Decimal from "decimal.js";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { toDecimal } from "@/lib/money";
 import type { PeriodRange } from "@/lib/period";
@@ -43,14 +44,37 @@ export async function getDashboardData(range: PeriodRange): Promise<DashboardDat
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
 
-  const [accounts, transactionsUpToRangeEnd, totalTransactionCount] = await Promise.all([
+  const activeInPeriod = {
+    account: { isActive: true },
+    date: { gte: range.from, lte: range.to },
+  } satisfies Prisma.TransactionWhereInput;
+
+  // Tudo agregado no banco e em paralelo: o custo depende do tamanho do
+  // período, não do histórico inteiro (antes eram carregadas todas as
+  // transações desde o início só para montar a série diária).
+  const [accounts, balanceBeforeRange, dailyTotals, periodTotals, categories, anyTransaction] = await Promise.all([
     prisma.account.findMany({ where: { isActive: true }, select: { initialBalance: true, currentBalance: true } }),
-    prisma.transaction.findMany({
-      where: { account: { isActive: true }, date: { lte: range.to } },
-      select: { date: true, amount: true },
-      orderBy: { date: "asc" },
+    prisma.transaction.aggregate({
+      where: { account: { isActive: true }, date: { lt: range.from } },
+      _sum: { amount: true },
     }),
-    prisma.transaction.count(),
+    // Datas gravadas em UTC (timestamp sem fuso): os limites vão como
+    // instantes UTC e o dia sai como texto, sem depender do fuso da sessão.
+    prisma.$queryRaw<Array<{ day: string; total: string }>>`
+      SELECT to_char(date_trunc('day', t."date"), 'YYYY-MM-DD') AS day, SUM(t."amount")::text AS total
+      FROM "transactions" t
+      JOIN "accounts" a ON a.id = t."accountId"
+      WHERE a."isActive"
+        AND t."date" >= (${range.from.toISOString()}::timestamptz AT TIME ZONE 'UTC')
+        AND t."date" <= (${range.to.toISOString()}::timestamptz AT TIME ZONE 'UTC')
+      GROUP BY 1`,
+    prisma.transaction.groupBy({
+      by: ["type", "categoryId"],
+      where: { ...activeInPeriod, type: { in: ["INCOME", "EXPENSE"] } },
+      _sum: { amount: true },
+    }),
+    prisma.category.findMany({ select: { id: true, name: true, color: true } }),
+    prisma.transaction.findFirst({ select: { id: true } }),
   ]);
 
   const netWorth = accounts.reduce((sum, a) => sum.plus(a.currentBalance.toString()), new Decimal(0));
@@ -60,25 +84,14 @@ export async function getDashboardData(range: PeriodRange): Promise<DashboardDat
   );
 
   // --- Série diária de saldo acumulado (realizado x projetado) ---
-  const balanceByDay = new Map<string, Decimal>();
-  let running = initialBalanceSum;
-  for (const tx of transactionsUpToRangeEnd) {
-    running = running.plus(tx.amount.toString());
-    const day = toIsoDay(tx.date);
-    balanceByDay.set(day, running); // última ocorrência do dia vence — ordenado asc
-  }
-
+  const totalByDay = new Map(dailyTotals.map((row) => [row.day, toDecimal(row.total)]));
   const dailyBalanceSeries: DailyBalancePoint[] = [];
-  let carry = initialBalanceSum;
-  // Preenche o saldo acumulado de todo dia anterior ao início do período
-  // (para o carry-forward começar correto), sem emitir esses pontos.
-  for (const [day, value] of balanceByDay) {
-    if (day < toIsoDay(range.from)) carry = value;
-  }
+  let carry = initialBalanceSum.plus(balanceBeforeRange._sum.amount?.toString() ?? "0");
 
   for (let cursor = new Date(range.from); cursor <= range.to; cursor = addDays(cursor, 1)) {
     const day = toIsoDay(cursor);
-    if (balanceByDay.has(day)) carry = balanceByDay.get(day)!;
+    const dayTotal = totalByDay.get(day);
+    if (dayTotal) carry = carry.plus(dayTotal);
     const isFuture = cursor > today;
     dailyBalanceSeries.push({
       date: day,
@@ -90,21 +103,13 @@ export async function getDashboardData(range: PeriodRange): Promise<DashboardDat
   const netWorthSparkline = dailyBalanceSeries.map((point) => point.projected);
 
   // --- Entradas vs Saídas do período (exclui TRANSFER/ADJUSTMENT) ---
-  const periodTransactions = await prisma.transaction.findMany({
-    where: {
-      account: { isActive: true },
-      date: { gte: range.from, lte: range.to },
-      type: { in: ["INCOME", "EXPENSE"] },
-    },
-    select: { amount: true, type: true, categoryId: true, category: { select: { name: true, color: true } } },
-  });
-
-  const income = periodTransactions
-    .filter((t) => t.type === "INCOME")
-    .reduce((sum, t) => sum.plus(t.amount.toString()), new Decimal(0));
-  const expense = periodTransactions
-    .filter((t) => t.type === "EXPENSE")
-    .reduce((sum, t) => sum.plus(t.amount.toString()), new Decimal(0));
+  let income = new Decimal(0);
+  let expense = new Decimal(0);
+  for (const row of periodTotals) {
+    const amount = toDecimal(row._sum.amount?.toString() ?? "0");
+    if (row.type === "INCOME") income = income.plus(amount);
+    if (row.type === "EXPENSE") expense = expense.plus(amount);
+  }
 
   const savingsRatePct = income.isZero() ? null : income.plus(expense).dividedBy(income).toNumber();
 
@@ -118,24 +123,18 @@ export async function getDashboardData(range: PeriodRange): Promise<DashboardDat
   const dailyBurnRate = expense.abs().dividedBy(daysElapsed).toDecimalPlaces(2).toNumber();
 
   // --- Despesas por categoria ---
-  const breakdownMap = new Map<string, { name: string; color: string; total: Decimal }>();
-  for (const t of periodTransactions) {
-    if (t.type !== "EXPENSE") continue;
-    const key = t.categoryId ?? "uncategorized";
-    const existing = breakdownMap.get(key);
-    const amountAbs = toDecimal(t.amount.toString()).abs();
-    if (existing) {
-      existing.total = existing.total.plus(amountAbs);
-    } else {
-      breakdownMap.set(key, {
-        name: t.category?.name ?? "Sem categoria",
-        color: t.category?.color ?? "var(--muted-foreground)",
-        total: amountAbs,
-      });
-    }
-  }
-  const categoryBreakdown = Array.from(breakdownMap.entries())
-    .map(([id, value]) => ({ id, name: value.name, color: value.color, total: value.total.toNumber() }))
+  const categoryById = new Map(categories.map((category) => [category.id, category]));
+  const categoryBreakdown = periodTotals
+    .filter((row) => row.type === "EXPENSE")
+    .map((row) => {
+      const category = row.categoryId ? categoryById.get(row.categoryId) : undefined;
+      return {
+        id: row.categoryId ?? "uncategorized",
+        name: category?.name ?? "Sem categoria",
+        color: category?.color ?? "var(--muted-foreground)",
+        total: toDecimal(row._sum.amount?.toString() ?? "0").abs().toNumber(),
+      };
+    })
     .sort((a, b) => b.total - a.total);
 
   return {
@@ -147,6 +146,6 @@ export async function getDashboardData(range: PeriodRange): Promise<DashboardDat
     dailyBurnRate,
     dailyBalanceSeries,
     categoryBreakdown,
-    hasAnyTransaction: totalTransactionCount > 0,
+    hasAnyTransaction: anyTransaction !== null,
   };
 }

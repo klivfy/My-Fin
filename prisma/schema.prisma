@@ -192,7 +192,10 @@ model Transaction {
   updatedAt DateTime @updatedAt
 
   @@index([accountId, date])
-  @@index([categoryId])
+  /// Dashboard e Orçamentos filtram por data em todas as contas.
+  @@index([date])
+  @@index([type, date])
+  @@index([categoryId, date])
   @@index([parentTransactionId])
   @@index([transferId])
   @@index([creditCardInvoiceId])

@@ -97,9 +97,13 @@ alerta de ritmo de queima acelerado).
 
 ## Segurança
 
-Em uso local o app fica aberto. Em deploy público (Netlify), defina
-`APP_ACCESS_TOKEN` nas variáveis de ambiente — o middleware passa a exigir
-login com esse token antes de qualquer rota (exceto `/login`).
+Em uso local o app fica aberto. Em produção, `APP_ACCESS_TOKEN` é
+obrigatório: sem ele o proxy (`src/proxy.ts`) responde 503. Com ele, todas
+as rotas (exceto `/login`) exigem login. O cookie de sessão guarda só uma
+assinatura HMAC do token com data de emissão (expira em 30 dias; trocar o
+token encerra todas as sessões), e `/api/login` aceita 10 tentativas por IP
+a cada 15 minutos. Esse limite fica na memória de cada instância da função,
+então não é global entre instâncias.
 
 ## Deploy (Netlify)
 

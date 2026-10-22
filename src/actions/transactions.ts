@@ -1,7 +1,9 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
+import Decimal from "decimal.js";
 import { z } from "zod";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { decimalToDb, moneySchema, toDecimal } from "@/lib/money";
 import { computeReconciliationHash, normalizeDescription } from "@/lib/financial-engine/reconciliation";
@@ -23,6 +25,20 @@ const updateTransactionSchema = createTransactionSchema.partial().extend({
 
 export type CreateTransactionInput = z.input<typeof createTransactionSchema>;
 export type UpdateTransactionInput = z.input<typeof updateTransactionSchema>;
+
+/** Teto de itens por operação em lote (exclusão, categoria, conciliação). */
+const MAX_BATCH = 500;
+
+/**
+ * Trava as linhas (`SELECT ... FOR UPDATE`) antes de ler o valor que vai
+ * virar delta de saldo. Sem isso, duas edições (ou edição + exclusão)
+ * simultâneas da mesma transação calculavam o delta a partir do mesmo valor
+ * antigo e o `currentBalance` deixava de bater com a soma dos lançamentos.
+ * Ordenado por id para que lotes concorrentes travem na mesma ordem.
+ */
+async function lockTransactions(tx: Prisma.TransactionClient, ids: string[]) {
+  await tx.$queryRaw`SELECT id FROM "transactions" WHERE id = ANY(${ids}::text[]) ORDER BY id FOR UPDATE`;
+}
 
 /**
  * Cria uma transação manual e atualiza o `currentBalance` da conta na
@@ -86,6 +102,7 @@ export async function updateTransaction(input: UpdateTransactionInput) {
   const parsed = updateTransactionSchema.parse(input);
 
   const result = await prisma.$transaction(async (tx) => {
+    await lockTransactions(tx, [parsed.id]);
     const existing = await tx.transaction.findUniqueOrThrow({
       where: { id: parsed.id },
       include: { invoiceSettlementFor: { select: { id: true } } },
@@ -162,57 +179,81 @@ export async function updateTransaction(input: UpdateTransactionInput) {
 
 const deleteTransactionSchema = z.object({ id: z.string().uuid() });
 
-/** Exclui uma transação manual e reverte seu efeito no saldo da conta. */
-export async function deleteTransaction(input: z.infer<typeof deleteTransactionSchema>) {
-  const { id } = deleteTransactionSchema.parse(input);
+/**
+ * Exclui as transações e reverte o efeito delas no saldo, tudo dentro da
+ * transação `tx`. Se qualquer uma não puder ser excluída, nada é excluído.
+ */
+async function deleteTransactionsInTx(tx: Prisma.TransactionClient, ids: string[]) {
+  await lockTransactions(tx, ids);
+  const existing = await tx.transaction.findMany({
+    where: { id: { in: ids } },
+    select: {
+      id: true,
+      accountId: true,
+      amount: true,
+      transferId: true,
+      creditCardInvoiceId: true,
+      invoiceSettlementFor: { select: { id: true } },
+    },
+  });
 
-  await prisma.$transaction(async (tx) => {
-    const existing = await tx.transaction.findUniqueOrThrow({
-      where: { id },
-      include: { invoiceSettlementFor: { select: { id: true } } },
-    });
-
-    if (existing.transferId) {
+  if (existing.length !== ids.length) {
+    throw new Error("Transação não encontrada (pode já ter sido excluída).");
+  }
+  for (const transaction of existing) {
+    if (transaction.transferId) {
       throw new Error(
         "Esta transação faz parte de uma transferência — exclua a transferência inteira.",
       );
     }
-    if (existing.creditCardInvoiceId) {
+    if (transaction.creditCardInvoiceId) {
       throw new Error(
         "Esta transação pertence a uma fatura de cartão — não pode ser excluída isoladamente.",
       );
     }
-    if (existing.invoiceSettlementFor) {
+    if (transaction.invoiceSettlementFor) {
       throw new Error(
         "Esta transação liquidou uma fatura — não pode ser excluída isoladamente.",
       );
     }
+  }
 
-    await tx.transaction.delete({ where: { id } });
+  await tx.transaction.deleteMany({ where: { id: { in: ids } } });
+
+  // Um único UPDATE por conta com a soma do que saiu dela.
+  const totalByAccount = new Map<string, Decimal>();
+  for (const transaction of existing) {
+    const current = totalByAccount.get(transaction.accountId) ?? new Decimal(0);
+    totalByAccount.set(transaction.accountId, current.plus(transaction.amount.toString()));
+  }
+  for (const accountId of Array.from(totalByAccount.keys()).sort()) {
     await tx.account.update({
-      where: { id: existing.accountId },
-      data: { currentBalance: { decrement: existing.amount } },
+      where: { id: accountId },
+      data: { currentBalance: { decrement: decimalToDb(totalByAccount.get(accountId)!) } },
     });
-  });
-
-  revalidateDashboard();
-}
-
-/** Exclui várias transações (reaproveita a validação/reversão de saldo de `deleteTransaction`). */
-export async function deleteTransactions(input: { ids: string[] }) {
-  const { ids } = z.object({ ids: z.array(z.string().uuid()).min(1) }).parse(input);
-  const results = await Promise.allSettled(ids.map((id) => deleteTransaction({ id })));
-  const failed = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
-  if (failed.length > 0) {
-    throw new Error(
-      `${failed.length} de ${ids.length} transação(ões) não pôde(puderam) ser excluída(s): ` +
-        `${failed[0].reason instanceof Error ? failed[0].reason.message : String(failed[0].reason)}`,
-    );
   }
 }
 
+/** Exclui uma transação manual e reverte seu efeito no saldo da conta. */
+export async function deleteTransaction(input: z.infer<typeof deleteTransactionSchema>) {
+  const { id } = deleteTransactionSchema.parse(input);
+  await prisma.$transaction((tx) => deleteTransactionsInTx(tx, [id]));
+  revalidateDashboard();
+}
+
+/**
+ * Exclui várias transações numa única transação de banco: ou todas são
+ * excluídas, ou nenhuma (uma conexão só, em vez de uma por item).
+ */
+export async function deleteTransactions(input: { ids: string[] }) {
+  const { ids } = z.object({ ids: z.array(z.string().uuid()).min(1).max(MAX_BATCH) }).parse(input);
+  const uniqueIds = Array.from(new Set(ids));
+  await prisma.$transaction((tx) => deleteTransactionsInTx(tx, uniqueIds));
+  revalidateDashboard();
+}
+
 const setCategorySchema = z.object({
-  ids: z.array(z.string().uuid()).min(1),
+  ids: z.array(z.string().uuid()).min(1).max(MAX_BATCH),
   categoryId: z.string().uuid().nullable(),
 });
 
@@ -224,7 +265,7 @@ export async function setTransactionsCategory(input: z.infer<typeof setCategoryS
 }
 
 const setReconciledSchema = z.object({
-  ids: z.array(z.string().uuid()).min(1),
+  ids: z.array(z.string().uuid()).min(1).max(MAX_BATCH),
   isReconciled: z.boolean(),
 });
 

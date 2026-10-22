@@ -4,38 +4,10 @@ import { randomUUID } from "node:crypto";
 import Decimal from "decimal.js";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import type { Prisma, Transaction } from "@prisma/client";
+import { invoiceWindowForPurchase, planInstallments, splitInstallments } from "@/lib/credit-card-cycle";
 import { decimalToDb, moneySchema, toDecimal } from "@/lib/money";
 import { computeReconciliationHash } from "@/lib/financial-engine/reconciliation";
 import { revalidateDashboard } from "@/lib/revalidate";
-
-type TxClient = Prisma.TransactionClient;
-
-/** Convenção de ciclo de fatura: fecha no dia 25, vence no dia 5 do mês seguinte. */
-const CLOSING_DAY = 25;
-const DUE_DAY = 5;
-
-function invoiceWindowForMonth(year: number, monthIndex: number): { closingDate: Date; dueDate: Date } {
-  const closingDate = new Date(Date.UTC(year, monthIndex, CLOSING_DAY));
-  const dueDate = new Date(Date.UTC(year, monthIndex + 1, DUE_DAY));
-  return { closingDate, dueDate };
-}
-
-/** Em qual mês de fatura uma compra feita em `date` cai, deslocada `monthsAhead` parcelas à frente. */
-function invoiceWindowForPurchase(date: Date, monthsAhead: number) {
-  const rolledPastClosing = date.getUTCDate() > CLOSING_DAY ? 1 : 0;
-  const year = date.getUTCFullYear();
-  const month = date.getUTCMonth() + rolledPastClosing + monthsAhead;
-  return invoiceWindowForMonth(year, month);
-}
-
-async function getOrCreateInvoice(tx: TxClient, accountId: string, closingDate: Date, dueDate: Date) {
-  return tx.creditCardInvoice.upsert({
-    where: { accountId_closingDate: { accountId, closingDate } },
-    create: { accountId, closingDate, dueDate, totalAmount: "0.00", status: "OPEN" },
-    update: {},
-  });
-}
 
 const createInstallmentPurchaseSchema = z.object({
   accountId: z.string().uuid(),
@@ -56,69 +28,113 @@ export type CreateInstallmentPurchaseInput = z.input<typeof createInstallmentPur
  * exatamente uma fatura. O valor total é distribuído em parcelas iguais,
  * com o resto de arredondamento absorvido pela última parcela (nunca a
  * primeira — evita cobrar o cliente "adiantado").
+ *
+ * Tudo é calculado em memória e gravado em lote: o número de consultas não
+ * depende do número de parcelas (antes eram ~4 por parcela, ~192 para 48x,
+ * perto do timeout de 5 s das transações interativas do Prisma).
  */
 export async function createInstallmentPurchase(input: CreateInstallmentPurchaseInput) {
   const parsed = createInstallmentPurchaseSchema.parse(input);
-
-  const baseInstallment = parsed.totalAmount
-    .dividedBy(parsed.totalInstallments)
-    .toDecimalPlaces(2, Decimal.ROUND_DOWN);
-  const remainder = parsed.totalAmount.minus(baseInstallment.times(parsed.totalInstallments));
+  const amounts = splitInstallments(parsed.totalAmount, parsed.totalInstallments);
+  const total = amounts.reduce((sum, amount) => sum.plus(amount), new Decimal(0));
 
   const created = await prisma.$transaction(async (tx) => {
-    let parentId: string | null = null;
-    const installmentTransactions: Transaction[] = [];
-
-    for (let i = 0; i < parsed.totalInstallments; i += 1) {
-      const isLast = i === parsed.totalInstallments - 1;
-      const installmentAmount = isLast ? baseInstallment.plus(remainder) : baseInstallment;
-
-      const { closingDate, dueDate } = invoiceWindowForPurchase(parsed.date, i);
-      const invoice = await getOrCreateInvoice(tx, parsed.accountId, closingDate, dueDate);
-
-      const installmentTransaction: Transaction = await tx.transaction.create({
-        data: {
-          accountId: parsed.accountId,
-          categoryId: parsed.categoryId ?? null,
-          amount: decimalToDb(installmentAmount.negated()),
-          type: "EXPENSE",
-          description: `${parsed.description} (${i + 1}/${parsed.totalInstallments})`,
-          originalDescription: parsed.description,
-          date: closingDate,
-          isPaid: false,
-          isReconciled: false,
-          installmentNumber: i + 1,
-          totalInstallments: parsed.totalInstallments,
-          parentTransactionId: parentId,
-          creditCardInvoiceId: invoice.id,
-          reconciliationHash: computeReconciliationHash({
-            accountId: parsed.accountId,
-            date: closingDate,
-            amount: installmentAmount.negated(),
-            description: `${parsed.description} ${i + 1}/${parsed.totalInstallments}`,
-            fitId: randomUUID(),
-          }),
-        },
-      });
-
-      if (i === 0) parentId = installmentTransaction.id;
-      installmentTransactions.push(installmentTransaction);
-
-      await tx.creditCardInvoice.update({
-        where: { id: invoice.id },
-        data: { totalAmount: { increment: decimalToDb(installmentAmount) } },
-      });
-
-      // Débito integral reconhecido no ato da compra (convenção adotada:
-      // `currentBalance` de uma conta CREDIT_CARD é o total já comprometido
-      // em faturas presentes e futuras, não apenas o já vencido).
-      await tx.account.update({
-        where: { id: parsed.accountId },
-        data: { currentBalance: { decrement: decimalToDb(installmentAmount) } },
-      });
+    const account = await tx.account.findUnique({
+      where: { id: parsed.accountId },
+      select: { type: true, isActive: true },
+    });
+    if (!account) {
+      throw new Error("Cartão não encontrado.");
+    }
+    if (account.type !== "CREDIT_CARD") {
+      throw new Error("Compra parcelada só pode ser lançada em conta do tipo cartão de crédito.");
+    }
+    if (!account.isActive) {
+      throw new Error("O cartão está inativo.");
     }
 
-    return installmentTransactions;
+    const paidInvoices = await tx.creditCardInvoice.findMany({
+      where: {
+        accountId: parsed.accountId,
+        status: "PAID",
+        closingDate: { gte: invoiceWindowForPurchase(parsed.date, 0).closingDate },
+      },
+      select: { closingDate: true },
+    });
+    const plan = planInstallments({
+      date: parsed.date,
+      amounts,
+      paidClosingDates: new Set(paidInvoices.map((invoice) => invoice.closingDate.toISOString())),
+    });
+
+    // Cria as faturas que faltam (as existentes ficam como estão).
+    await tx.creditCardInvoice.createMany({
+      data: plan.map((item) => ({
+        accountId: parsed.accountId,
+        closingDate: item.closingDate,
+        dueDate: item.dueDate,
+        totalAmount: "0.00",
+        status: "OPEN" as const,
+      })),
+      skipDuplicates: true,
+    });
+    const invoices = await tx.creditCardInvoice.findMany({
+      where: { accountId: parsed.accountId, closingDate: { in: plan.map((item) => item.closingDate) } },
+      select: { id: true, closingDate: true },
+    });
+    const invoiceIdByClosing = new Map(invoices.map((invoice) => [invoice.closingDate.toISOString(), invoice.id]));
+    const invoiceIds = plan.map((item) => invoiceIdByClosing.get(item.closingDate.toISOString())!);
+
+    // Um único UPDATE soma cada parcela à sua fatura, só se ela ainda não
+    // foi paga: a condição é reavaliada sob a trava da linha, então um
+    // pagamento concorrente nunca recebe valor depois de liquidado.
+    const updated = await tx.$queryRaw<Array<{ id: string }>>`
+      UPDATE "credit_card_invoices" AS i
+      SET "totalAmount" = i."totalAmount" + v.amount,
+          "updatedAt" = (NOW() AT TIME ZONE 'UTC')
+      FROM unnest(${invoiceIds}::text[], ${plan.map((item) => decimalToDb(item.amount))}::numeric[]) AS v(id, amount)
+      WHERE i.id = v.id AND i.status <> 'PAID'
+      RETURNING i.id`;
+    if (updated.length !== plan.length) {
+      throw new Error("Uma fatura foi liquidada durante o lançamento. Tente novamente.");
+    }
+
+    const parentId = randomUUID();
+    const installments = await tx.transaction.createManyAndReturn({
+      data: plan.map((item, i) => ({
+        id: i === 0 ? parentId : randomUUID(),
+        accountId: parsed.accountId,
+        categoryId: parsed.categoryId ?? null,
+        amount: decimalToDb(item.amount.negated()),
+        type: "EXPENSE" as const,
+        description: `${parsed.description} (${item.installmentNumber}/${parsed.totalInstallments})`,
+        originalDescription: parsed.description,
+        date: item.closingDate,
+        isPaid: false,
+        isReconciled: false,
+        installmentNumber: item.installmentNumber,
+        totalInstallments: parsed.totalInstallments,
+        parentTransactionId: i === 0 ? null : parentId,
+        creditCardInvoiceId: invoiceIds[i],
+        reconciliationHash: computeReconciliationHash({
+          accountId: parsed.accountId,
+          date: item.closingDate,
+          amount: item.amount.negated(),
+          description: `${parsed.description} ${item.installmentNumber}/${parsed.totalInstallments}`,
+          fitId: randomUUID(),
+        }),
+      })),
+    });
+
+    // Débito integral reconhecido no ato da compra (convenção adotada:
+    // `currentBalance` de uma conta CREDIT_CARD é o total já comprometido
+    // em faturas presentes e futuras, não apenas o já vencido).
+    await tx.account.update({
+      where: { id: parsed.accountId },
+      data: { currentBalance: { decrement: decimalToDb(total) } },
+    });
+
+    return installments.sort((x, y) => (x.installmentNumber ?? 0) - (y.installmentNumber ?? 0));
   });
 
   revalidateDashboard();
@@ -145,8 +161,17 @@ export async function settleInvoice(input: SettleInvoiceInput) {
   const parsed = settleInvoiceSchema.parse(input);
 
   const settlement = await prisma.$transaction(async (tx) => {
+    // Reivindica a fatura antes de qualquer outra coisa: o UPDATE condicional
+    // trava a linha, e um segundo pagamento simultâneo espera este terminar e
+    // então não encontra mais a fatura em aberto (count 0). Ler o status e
+    // decidir depois deixava os dois passarem e debitava a conta em dobro.
+    // Se algo abaixo falhar, o rollback devolve o status anterior.
+    const claimed = await tx.creditCardInvoice.updateMany({
+      where: { id: parsed.invoiceId, status: { not: "PAID" } },
+      data: { status: "PAID" },
+    });
     const invoice = await tx.creditCardInvoice.findUniqueOrThrow({ where: { id: parsed.invoiceId } });
-    if (invoice.status === "PAID") {
+    if (claimed.count !== 1) {
       throw new Error("Esta fatura já está liquidada.");
     }
     if (parsed.payingAccountId === invoice.accountId) {
@@ -201,7 +226,7 @@ export async function settleInvoice(input: SettleInvoiceInput) {
 
     await tx.creditCardInvoice.update({
       where: { id: invoice.id },
-      data: { status: "PAID", settlementTransactionId: settlementTransaction.id },
+      data: { settlementTransactionId: settlementTransaction.id },
     });
 
     return settlementTransaction;

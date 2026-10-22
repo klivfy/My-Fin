@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Receipt, Landmark, PiggyBank, type LucideIcon } from "lucide-react";
+import { LayoutDashboard, Receipt, ListChecks, Landmark, PiggyBank, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS: Array<{ href: string; label: string; icon: LucideIcon }> = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/transactions", label: "Extrato", icon: Receipt },
+  { href: "/review", label: "Revisar", icon: ListChecks },
   { href: "/accounts", label: "Contas", icon: Landmark },
   { href: "/budgets", label: "Orçamentos", icon: PiggyBank },
 ];

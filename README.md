@@ -36,6 +36,7 @@ npm run dev                 # http://localhost:3000
 npm run build       # build de produção (Next.js)
 npm run lint         # ESLint
 npm run typecheck    # tsc --noEmit
+npm test             # testes unitários (Vitest) do motor financeiro
 npm run db:studio    # Prisma Studio (inspeção visual do banco)
 npm run db:seed      # popula dados de teste (idempotente — reexecutar não duplica nada)
 ```
@@ -54,7 +55,11 @@ npm run db:seed      # popula dados de teste (idempotente — reexecutar não du
   as duas pernas (débito/crédito) são `Transaction`s reais do tipo
   `TRANSFER`, nunca contam como receita/despesa nos relatórios.
 - **Category**: hierárquica (auto-relação `parentId`), com `budgetLimit`
-  mensal opcional (alimenta a tela de Orçamentos).
+  mensal opcional (alimenta a tela de Orçamentos) e `nature`
+  (Necessidade/Desejo/Poupança, base da regra 50/30/20).
+- **CategorizationRule**: trecho da descrição normalizada → categoria,
+  aplicado em toda importação. `Transaction.categorizationSource` registra
+  quem categorizou (`MANUAL`, `RULE` ou `AI`).
 - **CreditCardInvoice**: ciclo `closingDate`/`dueDate`/`status`, com relação
   1:1 à transação de liquidação (`settlementTransactionId`).
 - **SyncLog**: auditoria de cada rodada de ingestão (fonte, status,
@@ -73,6 +78,12 @@ npm run db:seed      # popula dados de teste (idempotente — reexecutar não du
 - `reconciliation.ts`: hash determinístico
   `SHA256(accountId + data + valor + descrição normalizada + fitId)` — a
   mesma importação rodada duas vezes nunca duplica uma transação.
+- `categorization.ts`: casamento de regras por substring; vence o padrão
+  mais longo (mais específico).
+- `ai-categorizer.ts`: categorização pelo Claude (saída estruturada) do que
+  as regras não resolveram. Só envia data, valor e a descrição com números
+  longos e e-mails mascarados; sugestões de confiança baixa ficam para
+  revisão manual.
 
 ### Server Actions (`src/actions`)
 
@@ -82,16 +93,20 @@ npm run db:seed      # popula dados de teste (idempotente — reexecutar não du
   contas, com partida dobrada real.
 - `credit-cards.ts`: lançamento de compra parcelada (gera as N transações
   filhas já vinculadas às faturas correspondentes) e liquidação de fatura.
-- `import-ofx.ts`: recebe o arquivo `.ofx`, deduplica e insere em lote,
-  registrando tudo em `SyncLog`.
+- `import-ofx.ts`: recebe o arquivo `.ofx`, deduplica, aplica as regras de
+  categorização e insere em lote, registrando tudo em `SyncLog`.
+- `categorization.ts`: categorização manual (com criação opcional de regra
+  já aplicada às pendentes), natureza N/D/P das categorias e a IA — um lote
+  por chamada, para caber no timeout de funções serverless.
 
 ### UI (`src/app/(dashboard)`)
 
 Shell com Navigation Rail, Top App Bar (seletor de período, indicador de
-sincronização, Modo Privacidade, FAB de nova transação) e 4 telas:
+sincronização, Modo Privacidade, FAB de nova transação) e 5 telas:
 Dashboard (KPIs, fluxo de caixa realizado vs. projetado, despesas por
 categoria), Extrato (dropzone de OFX, tabela de alta densidade, ações em
-lote), Contas (grid de contas + módulo de cartão de crédito com régua de
+lote), Revisar (fila do que ficou sem categoria, botão "Categorizar com
+IA", natureza N/D/P das categorias e regras automáticas), Contas (grid de contas + módulo de cartão de crédito com régua de
 fatura e parcelamentos ativos) e Orçamentos (progresso por categoria com
 alerta de ritmo de queima acelerado).
 
@@ -106,4 +121,5 @@ login com esse token antes de qualquer rota (exceto `/login`).
 `netlify.toml` já configura o build (`prisma generate && next build`) e o
 plugin oficial. Configure `DATABASE_URL` (endpoint com connection pooling,
 ex. Supabase porta 6543 ou Neon `-pooler`) e `DIRECT_URL` (conexão direta,
-usada só pelo `prisma migrate`) nas variáveis de ambiente do site.
+usada só pelo `prisma migrate`) nas variáveis de ambiente do site. Para a
+categorização com IA, defina também `ANTHROPIC_API_KEY`.

@@ -52,6 +52,21 @@ enum TransactionType {
   ADJUSTMENT
 }
 
+/// Natureza de uma categoria de despesa na regra 50/30/20:
+/// NEED = Necessidade (50%), WANT = Desejo (30%), SAVINGS = Poupança (20%).
+enum CategoryNature {
+  NEED
+  WANT
+  SAVINGS
+}
+
+/// Quem atribuiu a categoria de uma transação.
+enum CategorizationSource {
+  MANUAL
+  RULE
+  AI
+}
+
 enum InvoiceStatus {
   OPEN
   CLOSED
@@ -118,11 +133,15 @@ model Category {
   /// Teto orçamentário mensal opcional (para relatórios de burn rate).
   budgetLimit Decimal? @db.Decimal(12, 2)
 
+  /// Necessidade/Desejo/Poupança (50/30/20). Só faz sentido em EXPENSE.
+  nature CategoryNature?
+
   parentId String?
   parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
   children Category[] @relation("CategoryHierarchy")
 
-  transactions Transaction[]
+  transactions        Transaction[]
+  categorizationRules CategorizationRule[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -130,6 +149,29 @@ model Category {
   @@index([parentId])
   @@index([type])
   @@map("categories")
+}
+
+// ----------------------------------------------------------------------------
+// CategorizationRule
+// ----------------------------------------------------------------------------
+
+/// Regra determinística de categorização: se a descrição normalizada da
+/// transação CONTÉM `pattern`, ela recebe `categoryId`. Quando várias regras
+/// casam, vence o padrão mais longo (mais específico) — ver
+/// src/lib/financial-engine/categorization.ts.
+model CategorizationRule {
+  id String @id @default(uuid())
+
+  /// Trecho já normalizado (mesma normalização de Transaction.description).
+  pattern String @unique
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([categoryId])
+  @@map("categorization_rules")
 }
 
 // ----------------------------------------------------------------------------
@@ -144,6 +186,10 @@ model Transaction {
 
   categoryId String?
   category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  /// Quem atribuiu `categoryId` (regra, IA ou o usuário). Nulo quando
+  /// a transação ainda não foi categorizada.
+  categorizationSource CategorizationSource?
 
   /// Assinado: positivo = crédito, negativo = débito. Sempre Decimal.
   amount Decimal         @db.Decimal(12, 2)
@@ -262,9 +308,9 @@ model CreditCardInvoice {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([accountId, closingDate])
   @@index([accountId, status])
   @@index([dueDate])
-  @@unique([accountId, closingDate])
   @@map("credit_card_invoices")
 }
 

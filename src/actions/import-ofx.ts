@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { toDecimal } from "@/lib/money";
 import { OfxAdapter } from "@/lib/financial-engine/ofx-adapter";
 import { hashTransactions, partitionByExistingHash } from "@/lib/financial-engine/reconciliation";
+import { matchCategory } from "@/lib/financial-engine/categorization";
 import { revalidateDashboard } from "@/lib/revalidate";
 
 const importOfxSchema = z.object({
@@ -52,22 +53,31 @@ export async function importOfx(formData: FormData): Promise<ImportOfxResult> {
 
     const hashed = hashTransactions(accountId, normalized);
     const { toInsert, duplicates } = await partitionByExistingHash(hashed);
+    const rules =
+      toInsert.length > 0
+        ? await prisma.categorizationRule.findMany({ select: { pattern: true, categoryId: true } })
+        : [];
 
     if (toInsert.length > 0) {
       await prisma.$transaction(async (tx) => {
         await tx.transaction.createMany({
-          data: toInsert.map((t) => ({
-            accountId,
-            amount: t.amount.toFixed(2),
-            type: t.amount.isNegative() ? "EXPENSE" : "INCOME",
-            description: t.description,
-            originalDescription: t.originalDescription,
-            date: t.date,
-            isPaid: true,
-            isReconciled: false,
-            reconciliationHash: t.reconciliationHash,
-            syncLogId: syncLog.id,
-          })),
+          data: toInsert.map((t) => {
+            const categoryId = matchCategory(t.description, rules);
+            return {
+              accountId,
+              categoryId,
+              categorizationSource: categoryId ? ("RULE" as const) : null,
+              amount: t.amount.toFixed(2),
+              type: t.amount.isNegative() ? ("EXPENSE" as const) : ("INCOME" as const),
+              description: t.description,
+              originalDescription: t.originalDescription,
+              date: t.date,
+              isPaid: true,
+              isReconciled: false,
+              reconciliationHash: t.reconciliationHash,
+              syncLogId: syncLog.id,
+            };
+          }),
         });
 
         const totalInserted = toInsert.reduce((sum, t) => sum.plus(t.amount), toDecimal(0));

@@ -48,6 +48,7 @@ export async function createTransaction(input: CreateTransactionInput) {
       data: {
         accountId: parsed.accountId,
         categoryId: parsed.categoryId ?? null,
+        categorizationSource: parsed.categoryId ? "MANUAL" : null,
         amount: decimalToDb(signedAmount),
         type: parsed.type,
         description: normalizeDescription(parsed.description),
@@ -117,11 +118,15 @@ export async function updateTransaction(input: UpdateTransactionInput) {
           ? rawAmount.abs()
           : rawAmount; // ADJUSTMENT: preserva o sinal explícito.
 
+    const nextCategoryId = parsed.categoryId ?? existing.categoryId;
+    const categoryChanged = nextCategoryId !== existing.categoryId;
+
     const updated = await tx.transaction.update({
       where: { id: parsed.id },
       data: {
         accountId: nextAccountId,
-        categoryId: parsed.categoryId ?? existing.categoryId,
+        categoryId: nextCategoryId,
+        categorizationSource: categoryChanged ? "MANUAL" : existing.categorizationSource,
         amount: decimalToDb(nextSignedAmount),
         type: nextType,
         description: parsed.description ? normalizeDescription(parsed.description) : existing.description,

@@ -1,6 +1,6 @@
 import { revalidatePath } from "next/cache";
 
-const DASHBOARD_PATHS = ["/", "/transactions", "/review", "/accounts", "/budgets"] as const;
+const DASHBOARD_PATHS = ["/", "/transactions", "/review", "/recurring", "/accounts", "/budgets"] as const;
 
 /**
  * Revalida as rotas do dashboard sem nunca deixar uma falha de invalidação

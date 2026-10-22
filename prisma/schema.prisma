@@ -175,6 +175,21 @@ model CategorizationRule {
 }
 
 // ----------------------------------------------------------------------------
+// RecurrenceIgnore
+// ----------------------------------------------------------------------------
+
+/// Recorrência detectada que o usuário marcou como "não é recorrente".
+/// A detecção é recalculada a partir das transações a cada acesso; esta
+/// tabela só guarda as chaves de estabelecimento descartadas
+/// (src/lib/financial-engine/recurrence.ts → merchantKey).
+model RecurrenceIgnore {
+  key       String   @id
+  createdAt DateTime @default(now())
+
+  @@map("recurrence_ignores")
+}
+
+// ----------------------------------------------------------------------------
 // Transaction
 // ----------------------------------------------------------------------------
 

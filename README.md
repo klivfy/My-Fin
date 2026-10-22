@@ -57,6 +57,8 @@ npm run db:seed      # popula dados de teste (idempotente — reexecutar não du
 - **Category**: hierárquica (auto-relação `parentId`), com `budgetLimit`
   mensal opcional (alimenta a tela de Orçamentos) e `nature`
   (Necessidade/Desejo/Poupança, base da regra 50/30/20).
+- **RecurrenceIgnore**: chaves de estabelecimento que o usuário marcou
+  como "não é recorrente" (a detecção em si é recalculada das transações).
 - **CategorizationRule**: trecho da descrição normalizada → categoria,
   aplicado em toda importação. `Transaction.categorizationSource` registra
   quem categorizou (`MANUAL`, `RULE` ou `AI`).
@@ -80,6 +82,10 @@ npm run db:seed      # popula dados de teste (idempotente — reexecutar não du
   mesma importação rodada duas vezes nunca duplica uma transação.
 - `categorization.ts`: casamento de regras por substring; vence o padrão
   mais longo (mais específico).
+- `recurrence.ts`: detecta contas e assinaturas recorrentes (mensais, por
+  meses de calendário, e anuais) com confiança A/M/B, e monta o calendário
+  de contas do mês (pago / a vencer / atrasado). Parcelamentos e gastos
+  frequentes ficam de fora; confiança baixa vira "confira", nunca conta.
 - `budget-rule.ts`: regra 50/30/20 sobre as receitas do período —
   Necessidades/Desejos pela natureza das categorias, Poupança = aportes +
   sobra; recomenda 60/20/20 ou 70/20/10 quando o custo fixo não cabe em
@@ -106,11 +112,12 @@ npm run db:seed      # popula dados de teste (idempotente — reexecutar não du
 ### UI (`src/app/(dashboard)`)
 
 Shell com Navigation Rail, Top App Bar (seletor de período, indicador de
-sincronização, Modo Privacidade, FAB de nova transação) e 5 telas:
+sincronização, Modo Privacidade, FAB de nova transação) e 6 telas:
 Dashboard (KPIs, fluxo de caixa realizado vs. projetado, despesas por
 categoria), Extrato (dropzone de OFX, tabela de alta densidade, ações em
 lote), Revisar (fila do que ficou sem categoria, botão "Categorizar com
-IA", natureza N/D/P das categorias e regras automáticas), Contas (grid de contas + módulo de cartão de crédito com régua de
+IA", natureza N/D/P das categorias e regras automáticas), Recorrentes
+(calendário de contas do mês e assinaturas com custo anual), Contas (grid de contas + módulo de cartão de crédito com régua de
 fatura e parcelamentos ativos) e Orçamentos (regra 50/30/20 do período com
 cortes sugeridos, e progresso por categoria com alerta de ritmo de queima
 acelerado).

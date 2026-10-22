@@ -19,7 +19,9 @@ const createTransferSchema = z
     message: "A conta de origem e destino não podem ser a mesma.",
     path: ["destinationAccountId"],
   })
-  .refine((data) => data.amount.gt(0), {
+  // Valida o valor já arredondado para centavos, como será persistido
+  // (`decimalToDb`): 0,004 passaria em `gt(0)` mas viraria 0,00 no banco.
+  .refine((data) => data.amount.toDecimalPlaces(2).gt(0), {
     message: "O valor da transferência deve ser positivo.",
     path: ["amount"],
   });

@@ -12,6 +12,7 @@ import {
   type AiCandidate,
 } from "@/lib/financial-engine/ai-categorizer";
 import { revalidateDashboard } from "@/lib/revalidate";
+import { runAction, UserFacingError, type ActionResult } from "@/lib/action-result";
 
 /** Transações elegíveis à fila de revisão: receitas/despesas sem categoria. */
 const UNCATEGORIZED_WHERE = {
@@ -38,36 +39,38 @@ export interface CategorizeResult {
  */
 export async function categorizeTransaction(
   input: z.input<typeof categorizeSchema>,
-): Promise<CategorizeResult> {
-  const parsed = categorizeSchema.parse(input);
-  const pattern = parsed.rulePattern ? normalizeRulePattern(parsed.rulePattern) : null;
-  if (parsed.rulePattern && !pattern) {
-    throw new Error("O trecho da regra precisa ter ao menos 4 caracteres.");
-  }
+): Promise<ActionResult<CategorizeResult>> {
+  return runAction(async () => {
+    const parsed = categorizeSchema.parse(input);
+    const pattern = parsed.rulePattern ? normalizeRulePattern(parsed.rulePattern) : null;
+    if (parsed.rulePattern && !pattern) {
+      throw new UserFacingError("O trecho da regra precisa ter ao menos 4 caracteres.");
+    }
 
-  const appliedToOthers = await prisma.$transaction(async (tx) => {
-    await tx.transaction.update({
-      where: { id: parsed.transactionId },
-      data: { categoryId: parsed.categoryId, categorizationSource: "MANUAL" },
+    const appliedToOthers = await prisma.$transaction(async (tx) => {
+      await tx.transaction.update({
+        where: { id: parsed.transactionId },
+        data: { categoryId: parsed.categoryId, categorizationSource: "MANUAL" },
+      });
+
+      if (!pattern) return 0;
+
+      await tx.categorizationRule.upsert({
+        where: { pattern },
+        create: { pattern, categoryId: parsed.categoryId },
+        update: { categoryId: parsed.categoryId },
+      });
+
+      const { count } = await tx.transaction.updateMany({
+        where: { ...UNCATEGORIZED_WHERE, description: { contains: pattern } },
+        data: { categoryId: parsed.categoryId, categorizationSource: "RULE" },
+      });
+      return count;
     });
 
-    if (!pattern) return 0;
-
-    await tx.categorizationRule.upsert({
-      where: { pattern },
-      create: { pattern, categoryId: parsed.categoryId },
-      update: { categoryId: parsed.categoryId },
-    });
-
-    const { count } = await tx.transaction.updateMany({
-      where: { ...UNCATEGORIZED_WHERE, description: { contains: pattern } },
-      data: { categoryId: parsed.categoryId, categorizationSource: "RULE" },
-    });
-    return count;
+    revalidateDashboard();
+    return { appliedToOthers };
   });
-
-  revalidateDashboard();
-  return { appliedToOthers };
 }
 
 const deleteRuleSchema = z.object({ id: z.string().uuid() });

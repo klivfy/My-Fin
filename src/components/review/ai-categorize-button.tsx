@@ -53,8 +53,8 @@ export function AiCategorizeButton({ enabled, pendingCount }: { enabled: boolean
             ? `IA categorizou ${categorized}. ${leftForReview} ficou(aram) para revisão manual (confiança baixa).`
             : `IA categorizou ${categorized} transação(ões).`,
         );
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erro ao categorizar com IA.");
+      } catch {
+        toast.error("Erro ao categorizar com IA.");
       } finally {
         setProgress(null);
       }

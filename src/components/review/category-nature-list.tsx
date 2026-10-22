@@ -35,8 +35,8 @@ function NatureRow({ category }: { category: ReviewCategory }) {
           categoryId: category.id,
           nature: category.nature === nature ? null : nature,
         });
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erro ao salvar.");
+      } catch {
+        toast.error("Erro ao salvar.");
       }
     });
   }

@@ -34,8 +34,8 @@ function RuleRow({ rule }: { rule: ReviewRule }) {
       try {
         await deleteCategorizationRule({ id: rule.id });
         toast.success("Regra removida.");
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erro ao remover regra.");
+      } catch {
+        toast.error("Erro ao remover regra.");
       }
     });
   }

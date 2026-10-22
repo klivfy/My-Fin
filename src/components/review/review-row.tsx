@@ -33,18 +33,23 @@ export function ReviewRow({
     }
     startTransition(async () => {
       try {
-        const { appliedToOthers } = await categorizeTransaction({
+        const result = await categorizeTransaction({
           transactionId: transaction.id,
           categoryId,
           rulePattern: createRule ? rulePattern : undefined,
         });
+        if (!result.ok) {
+          toast.error(result.error);
+          return;
+        }
+        const { appliedToOthers } = result.data;
         toast.success(
           appliedToOthers > 0
             ? `Categorizada. A regra também resolveu outras ${appliedToOthers} pendente(s).`
             : "Categorizada.",
         );
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erro ao categorizar.");
+      } catch {
+        toast.error("Erro ao categorizar.");
       }
     });
   }

@@ -22,8 +22,8 @@ export function IgnoreRecurrenceButton({ recurrenceKey, name }: { recurrenceKey:
           try {
             await ignoreRecurrence({ key: recurrenceKey });
             toast.success(`"${name}" não será mais tratado como recorrente.`);
-          } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Erro ao salvar.");
+          } catch {
+            toast.error("Erro ao salvar.");
           }
         })
       }
@@ -46,8 +46,8 @@ export function RestoreRecurrenceButton({ recurrenceKey }: { recurrenceKey: stri
         startTransition(async () => {
           try {
             await restoreRecurrence({ key: recurrenceKey });
-          } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Erro ao restaurar.");
+          } catch {
+            toast.error("Erro ao restaurar.");
           }
         })
       }

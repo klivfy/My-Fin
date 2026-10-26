@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "My-Fin",
+  "version": "0.1.0",
+  "description": "Atalho para o seu Gerenciador Financeiro Pessoal: abra o app, veja o patrimônio e lance transações.",
+  "default_locale": "pt_BR",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "My-Fin"
+  },
+  "icons": {
+    "192": "icons/icon-192.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "omnibox": {
+    "keyword": "fin"
+  },
+  "permissions": ["storage"],
+  "host_permissions": []
+}

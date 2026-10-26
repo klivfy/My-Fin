@@ -109,6 +109,17 @@ categoria, maiores despesas).
 - **Integração Inter**: `InterApiAdapter` com OAuth2 + mTLS (cliente HTTP
   injetável; credenciais via env em Base64).
 
+## Plataformas
+
+O app é um **PWA** (Progressive Web App): uma única base cobre Web 100%,
+Windows (instalável/Store), Android (TWA/Play Store), iOS/iPadOS (Adicionar
+à Tela de Início) e extensões Chromium/Edge/Firefox (`extension/`).
+
+- Manifest + ícones maskable + service worker (offline-first apenas para
+  assets; dados financeiros sempre da rede) em `public/`.
+- Guia completo de empacotamento por loja: [docs/PLATFORMS.md](docs/PLATFORMS.md).
+- Ícones regeneráveis: `npm run icons:generate`.
+
 ## Segurança
 
 Em uso local o app fica aberto. Em deploy público (Netlify), defina

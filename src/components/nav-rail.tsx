@@ -23,7 +23,7 @@ export function NavRail() {
 
   return (
     <>
-      <nav className="hidden w-20 shrink-0 flex-col items-center gap-2 border-r border-outline-variant bg-surface-container-low py-6 md:flex">
+      <nav className="hidden w-20 shrink-0 flex-col items-center gap-2 border-r border-outline-variant bg-surface-container-low py-6 pl-safe md:flex">
         <div className="mb-4 flex size-10 items-center justify-center rounded-2xl bg-primary text-sm font-bold text-primary-foreground">
           MF
         </div>
@@ -32,7 +32,7 @@ export function NavRail() {
         ))}
       </nav>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-outline-variant bg-surface-container-low py-2 md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-outline-variant bg-surface-container-low py-2 pb-safe pl-safe pr-safe md:hidden">
         {NAV_ITEMS.map((item) => (
           <NavLink key={item.href} item={item} active={isActive(pathname, item.href)} compact />
         ))}

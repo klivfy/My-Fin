@@ -2,6 +2,7 @@ import { Landmark, PiggyBank, CreditCard as CreditCardIcon, TrendingUp, Wallet }
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Money } from "@/components/money";
 import { AdjustBalanceDialog } from "@/components/accounts/adjust-balance-dialog";
+import { AccountActions } from "@/components/accounts/account-form-dialog";
 import { CreditCardModule } from "@/components/accounts/credit-card-module";
 import type { AccountView } from "@/lib/queries/accounts";
 
@@ -43,7 +44,19 @@ export function AccountCard({
             <p className="text-xs text-on-surface-variant">{TYPE_LABEL[account.type]}</p>
           </div>
         </div>
-        {!isCreditCard && <AdjustBalanceDialog accountId={account.id} currentBalance={account.currentBalance} />}
+        <div className="flex items-center gap-1">
+          {!isCreditCard && <AdjustBalanceDialog accountId={account.id} currentBalance={account.currentBalance} />}
+          <AccountActions
+            account={{
+              id: account.id,
+              name: account.name,
+              type: account.type,
+              creditLimit: account.creditLimit,
+              closingDay: account.closingDay,
+              dueDay: account.dueDay,
+            }}
+          />
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <Money

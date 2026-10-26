@@ -2,7 +2,9 @@ import type { TransactionType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { listTransactions } from "@/lib/queries/transactions";
 import { OfxDropzone } from "@/components/transactions/ofx-dropzone";
+import { CsvImportPanel } from "@/components/transactions/csv-import-panel";
 import { FilterBar } from "@/components/transactions/filter-bar";
+import { TransactionsToolbar } from "@/components/transactions/toolbar";
 import { TransactionsTable, type TransactionRow } from "@/components/transactions/transactions-table";
 import { PaginationBar } from "@/components/pagination-bar";
 
@@ -65,6 +67,12 @@ export default async function TransactionsPage({
           .filter((a) => a.type !== "CREDIT_CARD")
           .map((a) => ({ id: a.id, name: a.name }))}
       />
+      <CsvImportPanel
+        accounts={accounts
+          .filter((a) => a.type !== "CREDIT_CARD")
+          .map((a) => ({ id: a.id, name: a.name }))}
+      />
+      <TransactionsToolbar />
       <FilterBar accounts={accounts} categories={categories} />
       <TransactionsTable rows={tableRows} categories={categories} />
       <PaginationBar page={page} pageCount={pageCount} />

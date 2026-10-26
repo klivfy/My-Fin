@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatDateShort, formatPercent } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { SettleInvoiceDialog } from "@/components/accounts/settle-invoice-dialog";
+import { ReverseSettlementButton } from "@/components/accounts/reverse-settlement-button";
 import { Button } from "@/components/ui/button";
 import type { CreditCardView } from "@/lib/queries/accounts";
 
@@ -33,8 +34,12 @@ export function CreditCardModule({
     (a, b) => new Date(a.closingDate).getTime() - new Date(b.closingDate).getTime(),
   );
   const currentInvoice =
-    sortedInvoices.find((inv) => new Date(inv.closingDate) >= today) ?? sortedInvoices[sortedInvoices.length - 1];
-  const overdueInvoices = sortedInvoices.filter((inv) => inv.id !== currentInvoice?.id);
+    sortedInvoices.find((inv) => inv.status !== "PAID" && new Date(inv.closingDate) >= today) ??
+    sortedInvoices.find((inv) => inv.status !== "PAID");
+  const overdueInvoices = sortedInvoices.filter(
+    (inv) => inv.status !== "PAID" && inv.id !== currentInvoice?.id,
+  );
+  const paidInvoices = sortedInvoices.filter((inv) => inv.status === "PAID");
 
   const limit = creditLimit ? Number(creditLimit) : null;
   const totalDebt = Math.abs(Number(currentBalance));
@@ -118,6 +123,21 @@ export function CreditCardModule({
                     }
                   />
                 )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {paidInvoices.length > 0 && (
+        <div className="space-y-2 border-t border-outline-variant pt-3">
+          <p className="text-xs font-medium text-on-surface-variant">Faturas pagas recentemente</p>
+          {paidInvoices.map((invoice) => (
+            <div key={invoice.id} className="flex items-center justify-between text-sm">
+              <span className="text-on-surface-variant">Fechou {formatDateShort(invoice.closingDate)}</span>
+              <div className="flex items-center gap-2">
+                <Money value={-Number(invoice.totalAmount)} tone="expense" showSign={false} />
+                <ReverseSettlementButton invoiceId={invoice.id} />
               </div>
             </div>
           ))}

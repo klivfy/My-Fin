@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 
 type TxClient = Prisma.TransactionClient;
 
@@ -30,7 +31,7 @@ export async function recordAudit(tx: TxClient, entry: AuditEntry): Promise<void
       },
     });
   } catch (error) {
-    console.error("[audit] falha ao registrar", entry.action, error);
+    logger.error({ action: "audit.record", entityType: entry.entityType, entityId: entry.entityId }, "falha ao registrar auditoria", error);
   }
 }
 
@@ -46,6 +47,6 @@ export async function recordAuditStandalone(entry: AuditEntry): Promise<void> {
       },
     });
   } catch (error) {
-    console.error("[audit] falha ao registrar", entry.action, error);
+    logger.error({ action: "audit.record", entityType: entry.entityType, entityId: entry.entityId }, "falha ao registrar auditoria", error);
   }
 }

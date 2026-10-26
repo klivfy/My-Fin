@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Receipt, Landmark, PiggyBank, type LucideIcon } from "lucide-react";
+import { LayoutDashboard, Receipt, Landmark, PiggyBank, BarChart3, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS: Array<{ href: string; label: string; icon: LucideIcon }> = [
@@ -10,6 +10,7 @@ const NAV_ITEMS: Array<{ href: string; label: string; icon: LucideIcon }> = [
   { href: "/transactions", label: "Extrato", icon: Receipt },
   { href: "/accounts", label: "Contas", icon: Landmark },
   { href: "/budgets", label: "Orçamentos", icon: PiggyBank },
+  { href: "/reports", label: "Relatórios", icon: BarChart3 },
 ];
 
 function isActive(pathname: string, href: string): boolean {

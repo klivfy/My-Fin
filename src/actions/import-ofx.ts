@@ -8,6 +8,7 @@ import { revalidateDashboard } from "@/lib/revalidate";
 import { assertAuthorized } from "@/lib/auth";
 import { DomainError, safeErrorMessage } from "@/lib/errors";
 import { recordAuditStandalone } from "@/lib/audit";
+import { logger } from "@/lib/logger";
 import { MAX_OFX_FILE_SIZE_BYTES, MAX_OFX_RECORDS } from "@/lib/constants";
 
 const importOfxSchema = z.object({
@@ -123,8 +124,8 @@ export async function importOfx(formData: FormData): Promise<ImportOfxResult> {
     };
   } catch (error) {
     // Persiste apenas a mensagem segura (erros de domínio) ou uma genérica;
-    // o detalhe técnico completo fica no log do servidor — nunca no banco.
-    console.error("[importOfx] falha na importação:", error);
+    // o detalhe técnico completo fica no log estruturado do servidor.
+    logger.error({ action: "ofx.import", syncLogId: syncLog.id, accountId }, "falha na importação OFX", error);
     await prisma.syncLog.update({
       where: { id: syncLog.id },
       data: {

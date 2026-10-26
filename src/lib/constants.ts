@@ -5,7 +5,7 @@
  */
 
 /** Rotas revalidadas após qualquer mutação financeira. */
-export const DASHBOARD_PATHS = ["/", "/transactions", "/accounts", "/budgets"] as const;
+export const DASHBOARD_PATHS = ["/", "/transactions", "/accounts", "/budgets", "/reports"] as const;
 
 /** Cookie de sessão do gate de acesso (prefixo `__Host-` ver `src/lib/auth.ts`). */
 export const ACCESS_COOKIE_NAME = "__Host-myfin_access";

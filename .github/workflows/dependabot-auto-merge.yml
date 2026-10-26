@@ -1,0 +1,27 @@
+# Auto-merge de PRs do Dependabot (patch/minor) quando o CI passa.
+# O agrupamento de patch/minor já está em .github/dependabot.yml.
+name: Dependabot auto-merge
+
+on: pull_request
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Metadados do Dependabot
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+
+      - name: Aprovar e habilitar auto-merge (patch/minor)
+        if: steps.metadata.outputs.update-type != 'version-update:semver-major'
+        run: |
+          gh pr review --approve "$PR_URL"
+          gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

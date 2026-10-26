@@ -8,6 +8,7 @@ import { revalidateDashboard } from "@/lib/revalidate";
 import { assertAuthorized } from "@/lib/auth";
 import { DomainError, safeErrorMessage } from "@/lib/errors";
 import { recordAuditStandalone } from "@/lib/audit";
+import { logger } from "@/lib/logger";
 import { MAX_OFX_FILE_SIZE_BYTES, MAX_OFX_RECORDS } from "@/lib/constants";
 
 const mappingSchema = z.object({
@@ -121,7 +122,7 @@ export async function importCsv(formData: FormData): Promise<ImportCsvResult> {
       syncLogId: syncLog.id,
     };
   } catch (error) {
-    console.error("[importCsv] falha na importação:", error);
+    logger.error({ action: "csv.import", syncLogId: syncLog.id, accountId }, "falha na importação CSV", error);
     await prisma.syncLog.update({
       where: { id: syncLog.id },
       data: {

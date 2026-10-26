@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Money } from "@/components/money";
 import { formatBRL, formatPercent } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { EditBudgetDialog } from "@/components/budgets/budget-dialogs";
 import type { BudgetView } from "@/lib/queries/budgets";
 
 export function BudgetCard({ budget }: { budget: BudgetView }) {
@@ -15,6 +16,7 @@ export function BudgetCard({ budget }: { budget: BudgetView }) {
         <div className="flex items-center gap-2">
           <span className="size-2.5 rounded-full" style={{ backgroundColor: budget.color }} />
           <CardTitle className="text-sm font-medium">{budget.name}</CardTitle>
+          <EditBudgetDialog categoryId={budget.id} name={budget.name} currentLimit={budget.budgetLimit} />
         </div>
         {(budget.isAcceleratedBurn || overBudget) && (
           <span

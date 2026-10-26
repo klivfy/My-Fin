@@ -88,12 +88,26 @@ npm run db:seed      # popula dados de teste (idempotente — reexecutar não du
 ### UI (`src/app/(dashboard)`)
 
 Shell com Navigation Rail, Top App Bar (seletor de período, indicador de
-sincronização, Modo Privacidade, FAB de nova transação) e 4 telas:
+sincronização, Modo Privacidade, FAB de nova transação) e 5 telas:
 Dashboard (KPIs, fluxo de caixa realizado vs. projetado, despesas por
-categoria), Extrato (dropzone de OFX, tabela de alta densidade, ações em
-lote), Contas (grid de contas + módulo de cartão de crédito com régua de
-fatura e parcelamentos ativos) e Orçamentos (progresso por categoria com
-alerta de ritmo de queima acelerado).
+categoria), Extrato (dropzones de OFX e CSV com mapeamento de colunas,
+exportação CSV/backup JSON, tabela com edição inline e ações em lote),
+Contas (CRUD de contas, módulo de cartão de crédito com régua de fatura,
+estorno de liquidação, auditoria de saldo e lançamentos recorrentes),
+Orçamentos (teto por categoria editável, metas de poupança e regras de
+categorização automática) e Relatórios (comparativo mensal, médias por
+categoria, maiores despesas).
+
+### Automação
+
+- **Regras de categorização**: padrões (substring, case/accent-insensitive)
+  aplicados na ingestão OFX/CSV e sob demanda no extrato.
+- **Lançamentos recorrentes**: `ScheduledTransaction` (mensal/semanal,
+  ocorrências opcionais) materializada por
+  `materializeScheduledTransactions` — Netlify Scheduled Function diária ou
+  botão "Processar vencidos" na tela Contas.
+- **Integração Inter**: `InterApiAdapter` com OAuth2 + mTLS (cliente HTTP
+  injetável; credenciais via env em Base64).
 
 ## Segurança
 

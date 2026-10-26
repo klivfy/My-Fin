@@ -6,6 +6,10 @@ import { toDecimal } from "@/lib/money";
 import { OfxAdapter } from "@/lib/financial-engine/ofx-adapter";
 import { hashTransactions, partitionByExistingHash } from "@/lib/financial-engine/reconciliation";
 import { revalidateDashboard } from "@/lib/revalidate";
+import { assertAuthorized } from "@/lib/auth";
+import { DomainError, safeErrorMessage } from "@/lib/errors";
+import { recordAuditStandalone } from "@/lib/audit";
+import { MAX_OFX_FILE_SIZE_BYTES, MAX_OFX_RECORDS } from "@/lib/constants";
 
 const importOfxSchema = z.object({
   accountId: z.string().uuid(),
@@ -25,11 +29,35 @@ export interface ImportOfxResult {
  * falha — fica registrada em `SyncLog` para auditoria.
  */
 export async function importOfx(formData: FormData): Promise<ImportOfxResult> {
+  await assertAuthorized();
   const { accountId } = importOfxSchema.parse({ accountId: formData.get("accountId") });
 
   const file = formData.get("file");
   if (!(file instanceof File)) {
-    throw new Error("Nenhum arquivo OFX foi enviado.");
+    throw new DomainError("Nenhum arquivo OFX foi enviado.");
+  }
+
+  // --- Defesas de borda (o cliente também filtra, mas a autoridade é aqui) ---
+  if (!file.name.toLowerCase().endsWith(".ofx")) {
+    throw new DomainError("Envie um arquivo .ofx.");
+  }
+  if (file.size > MAX_OFX_FILE_SIZE_BYTES) {
+    throw new DomainError(
+      `Arquivo muito grande (${(file.size / 1024 / 1024).toFixed(1)} MB). Limite: ${MAX_OFX_FILE_SIZE_BYTES / 1024 / 1024} MB.`,
+    );
+  }
+
+  // OFX em conta de cartão não é suportado: as convenções de fatura/saldo de
+  // CREDIT_CARD (saldo negativo = dívida comprometida) exigem um fluxo próprio
+  // com vínculo a faturas. Importar aqui corromperia o saldo do cartão.
+  const account = await prisma.account.findUniqueOrThrow({
+    where: { id: accountId },
+    select: { type: true },
+  });
+  if (account.type === "CREDIT_CARD") {
+    throw new DomainError(
+      "Importação OFX não é suportada para cartões de crédito. Lance compras pelo módulo do cartão.",
+    );
   }
 
   const syncLog = await prisma.syncLog.create({
@@ -40,6 +68,13 @@ export async function importOfx(formData: FormData): Promise<ImportOfxResult> {
     const buffer = Buffer.from(await file.arrayBuffer());
     const adapter = new OfxAdapter(buffer);
     const blocks = adapter.parsePayload(undefined);
+
+    if (blocks.length > MAX_OFX_RECORDS) {
+      throw new DomainError(
+        `O extrato contém ${blocks.length} registros — acima do limite de ${MAX_OFX_RECORDS} por importação. Divida o arquivo.`,
+      );
+    }
+
     const normalized = blocks.map((block) => adapter.normalize(block));
 
     if (normalized.length === 0) {
@@ -91,6 +126,18 @@ export async function importOfx(formData: FormData): Promise<ImportOfxResult> {
 
     revalidateDashboard();
 
+    await recordAuditStandalone({
+      action: "ofx.import",
+      entityType: "SyncLog",
+      entityId: syncLog.id,
+      payload: {
+        accountId,
+        recordsProcessed: normalized.length,
+        recordsInserted: toInsert.length,
+        recordsSkipped: duplicates.length,
+      },
+    });
+
     return {
       recordsProcessed: normalized.length,
       recordsInserted: toInsert.length,
@@ -98,11 +145,14 @@ export async function importOfx(formData: FormData): Promise<ImportOfxResult> {
       syncLogId: syncLog.id,
     };
   } catch (error) {
+    // Persiste apenas a mensagem segura (erros de domínio) ou uma genérica;
+    // o detalhe técnico completo fica no log do servidor — nunca no banco.
+    console.error("[importOfx] falha na importação:", error);
     await prisma.syncLog.update({
       where: { id: syncLog.id },
       data: {
         status: "FAILED",
-        errorDetails: error instanceof Error ? error.message : String(error),
+        errorDetails: safeErrorMessage(error, "Falha ao processar o arquivo OFX."),
         finishedAt: new Date(),
       },
     });

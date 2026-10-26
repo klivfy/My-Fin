@@ -192,6 +192,7 @@ model Transaction {
   updatedAt DateTime @updatedAt
 
   @@index([accountId, date])
+  @@index([type, date])
   @@index([categoryId])
   @@index([parentTransactionId])
   @@index([transferId])
@@ -291,4 +292,25 @@ model SyncLog {
 
   @@index([provider, status])
   @@map("sync_logs")
+}
+
+// ----------------------------------------------------------------------------
+// AuditLog
+// ----------------------------------------------------------------------------
+
+/// Trilha de auditoria das ações destrutivas/sensíveis (exclusões em lote,
+/// reversão de transferência, liquidação de fatura, recálculo de saldo).
+/// `payload` guarda um resumo JSON — nunca dados sensíveis além do
+/// necessário para reconstruir "o quê, quando e sobre qual entidade".
+model AuditLog {
+  id         String   @id @default(uuid())
+  action     String
+  entityType String
+  entityId   String?
+  payload    Json?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
 }

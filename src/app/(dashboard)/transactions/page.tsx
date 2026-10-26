@@ -24,7 +24,7 @@ export default async function TransactionsPage({
   const type = VALID_TYPES.includes(params.type as TransactionType) ? (params.type as TransactionType) : undefined;
 
   const [accounts, categories, { rows, total, pageCount }] = await Promise.all([
-    prisma.account.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    prisma.account.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true, type: true } }),
     prisma.category.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     listTransactions({
       page,
@@ -58,7 +58,13 @@ export default async function TransactionsPage({
         <p className="text-sm text-on-surface-variant">{total} transação(ões) no total.</p>
       </div>
 
-      <OfxDropzone accounts={accounts} />
+      {/* OFX só vale para contas de movimentação — cartões têm fluxo próprio
+          de faturas (o servidor também bloqueia, ver import-ofx.ts). */}
+      <OfxDropzone
+        accounts={accounts
+          .filter((a) => a.type !== "CREDIT_CARD")
+          .map((a) => ({ id: a.id, name: a.name }))}
+      />
       <FilterBar accounts={accounts} categories={categories} />
       <TransactionsTable rows={tableRows} categories={categories} />
       <PaginationBar page={page} pageCount={pageCount} />

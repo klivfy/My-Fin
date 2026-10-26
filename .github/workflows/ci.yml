@@ -41,4 +41,16 @@ jobs:
 
       - run: npm run typecheck
 
+      - run: npm run test
+
       - run: npm run build
+
+  audit:
+    name: Auditoria de dependências
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Falha em vulnerabilidades high/critical nas dependências
+        run: npm audit --audit-level=high --omit=dev

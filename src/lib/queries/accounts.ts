@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { parseAccountMetadata } from "@/lib/account-metadata";
 
 export interface InvoiceSummary {
   id: string;
@@ -107,14 +108,14 @@ export async function listAccountViews(): Promise<AccountView[]> {
   }
 
   return accounts.map((account) => {
-    const metadata = (account.metadata as { creditLimit?: string } | null) ?? null;
+    const metadata = parseAccountMetadata(account.metadata);
     const isCreditCard = account.type === "CREDIT_CARD";
     return {
       id: account.id,
       name: account.name,
       type: account.type,
       currentBalance: account.currentBalance.toString(),
-      creditLimit: metadata?.creditLimit ?? null,
+      creditLimit: metadata.creditLimit ?? null,
       creditCard: isCreditCard
         ? {
             invoices: invoicesByAccount.get(account.id) ?? [],

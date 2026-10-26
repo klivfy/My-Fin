@@ -1,6 +1,7 @@
 import { Landmark } from "lucide-react";
 import { listAccountViews } from "@/lib/queries/accounts";
 import { AccountCard } from "@/components/accounts/account-card";
+import { AuditBalancesButton } from "@/components/accounts/audit-balances-button";
 import { EmptyState } from "@/components/dashboard/empty-state";
 
 export default async function AccountsPage() {
@@ -11,9 +12,12 @@ export default async function AccountsPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold text-on-surface">Contas Bancárias e Cartões</h1>
-        <p className="text-sm text-on-surface-variant">{accounts.length} conta(s) ativa(s).</p>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h1 className="text-xl font-semibold text-on-surface">Contas Bancárias e Cartões</h1>
+          <p className="text-sm text-on-surface-variant">{accounts.length} conta(s) ativa(s).</p>
+        </div>
+        {accounts.length > 0 && <AuditBalancesButton />}
       </div>
 
       {accounts.length === 0 ? (

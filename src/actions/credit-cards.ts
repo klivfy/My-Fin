@@ -8,25 +8,47 @@ import type { Prisma, Transaction } from "@prisma/client";
 import { decimalToDb, moneySchema, toDecimal } from "@/lib/money";
 import { computeReconciliationHash } from "@/lib/financial-engine/reconciliation";
 import { revalidateDashboard } from "@/lib/revalidate";
+import { assertAuthorized } from "@/lib/auth";
+import { DomainError } from "@/lib/errors";
+import { recordAudit } from "@/lib/audit";
+import { invoiceCycleOf, parseAccountMetadata, type InvoiceCycle } from "@/lib/account-metadata";
 
 type TxClient = Prisma.TransactionClient;
 
-/** Convenção de ciclo de fatura: fecha no dia 25, vence no dia 5 do mês seguinte. */
-const CLOSING_DAY = 25;
-const DUE_DAY = 5;
+/**
+ * Ciclo de fatura: por padrão fecha no dia 25 e vence no dia 5 do mês
+ * seguinte, mas cada cartão pode sobrescrever via `Account.metadata`
+ * (`closingDay`/`dueDay`, 1–28 — validados por Zod em
+ * `src/lib/account-metadata.ts`). O fechamento SEMPRE ocorre antes do
+ * vencimento dentro do ciclo mensal.
+ */
+async function getInvoiceCycle(tx: TxClient, accountId: string): Promise<InvoiceCycle> {
+  const account = await tx.account.findUniqueOrThrow({
+    where: { id: accountId },
+    select: { metadata: true },
+  });
+  return invoiceCycleOf(parseAccountMetadata(account.metadata));
+}
 
-function invoiceWindowForMonth(year: number, monthIndex: number): { closingDate: Date; dueDate: Date } {
-  const closingDate = new Date(Date.UTC(year, monthIndex, CLOSING_DAY));
-  const dueDate = new Date(Date.UTC(year, monthIndex + 1, DUE_DAY));
+function invoiceWindowForMonth(
+  cycle: InvoiceCycle,
+  year: number,
+  monthIndex: number,
+): { closingDate: Date; dueDate: Date } {
+  const closingDate = new Date(Date.UTC(year, monthIndex, cycle.closingDay));
+  // Vencimento no mês seguinte ao fechamento quando dueDay <= closingDay
+  // (caso comum: fecha 25, vence 5); senão, no mesmo mês.
+  const dueMonthOffset = cycle.dueDay <= cycle.closingDay ? 1 : 0;
+  const dueDate = new Date(Date.UTC(year, monthIndex + dueMonthOffset, cycle.dueDay));
   return { closingDate, dueDate };
 }
 
 /** Em qual mês de fatura uma compra feita em `date` cai, deslocada `monthsAhead` parcelas à frente. */
-function invoiceWindowForPurchase(date: Date, monthsAhead: number) {
-  const rolledPastClosing = date.getUTCDate() > CLOSING_DAY ? 1 : 0;
+function invoiceWindowForPurchase(cycle: InvoiceCycle, date: Date, monthsAhead: number) {
+  const rolledPastClosing = date.getUTCDate() > cycle.closingDay ? 1 : 0;
   const year = date.getUTCFullYear();
   const month = date.getUTCMonth() + rolledPastClosing + monthsAhead;
-  return invoiceWindowForMonth(year, month);
+  return invoiceWindowForMonth(cycle, year, month);
 }
 
 async function getOrCreateInvoice(tx: TxClient, accountId: string, closingDate: Date, dueDate: Date) {
@@ -58,6 +80,7 @@ export type CreateInstallmentPurchaseInput = z.input<typeof createInstallmentPur
  * primeira — evita cobrar o cliente "adiantado").
  */
 export async function createInstallmentPurchase(input: CreateInstallmentPurchaseInput) {
+  await assertAuthorized();
   const parsed = createInstallmentPurchaseSchema.parse(input);
 
   const baseInstallment = parsed.totalAmount
@@ -66,6 +89,7 @@ export async function createInstallmentPurchase(input: CreateInstallmentPurchase
   const remainder = parsed.totalAmount.minus(baseInstallment.times(parsed.totalInstallments));
 
   const created = await prisma.$transaction(async (tx) => {
+    const cycle = await getInvoiceCycle(tx, parsed.accountId);
     let parentId: string | null = null;
     const installmentTransactions: Transaction[] = [];
 
@@ -73,7 +97,7 @@ export async function createInstallmentPurchase(input: CreateInstallmentPurchase
       const isLast = i === parsed.totalInstallments - 1;
       const installmentAmount = isLast ? baseInstallment.plus(remainder) : baseInstallment;
 
-      const { closingDate, dueDate } = invoiceWindowForPurchase(parsed.date, i);
+      const { closingDate, dueDate } = invoiceWindowForPurchase(cycle, parsed.date, i);
       const invoice = await getOrCreateInvoice(tx, parsed.accountId, closingDate, dueDate);
 
       const installmentTransaction: Transaction = await tx.transaction.create({
@@ -142,23 +166,24 @@ export type SettleInvoiceInput = z.input<typeof settleInvoiceSchema>;
  * gasto no relatório de fluxo de caixa.
  */
 export async function settleInvoice(input: SettleInvoiceInput) {
+  await assertAuthorized();
   const parsed = settleInvoiceSchema.parse(input);
 
   const settlement = await prisma.$transaction(async (tx) => {
     const invoice = await tx.creditCardInvoice.findUniqueOrThrow({ where: { id: parsed.invoiceId } });
     if (invoice.status === "PAID") {
-      throw new Error("Esta fatura já está liquidada.");
+      throw new DomainError("Esta fatura já está liquidada.");
     }
     if (parsed.payingAccountId === invoice.accountId) {
-      throw new Error("A conta pagadora deve ser diferente do cartão da fatura.");
+      throw new DomainError("A conta pagadora deve ser diferente do cartão da fatura.");
     }
 
     const payer = await tx.account.findUniqueOrThrow({ where: { id: parsed.payingAccountId } });
     if (!payer.isActive) {
-      throw new Error("A conta pagadora está inativa.");
+      throw new DomainError("A conta pagadora está inativa.");
     }
     if (payer.type === "CREDIT_CARD") {
-      throw new Error("A conta pagadora não pode ser um cartão de crédito.");
+      throw new DomainError("A conta pagadora não pode ser um cartão de crédito.");
     }
 
     const totalAmount = toDecimal(invoice.totalAmount.toString());
@@ -202,6 +227,17 @@ export async function settleInvoice(input: SettleInvoiceInput) {
     await tx.creditCardInvoice.update({
       where: { id: invoice.id },
       data: { status: "PAID", settlementTransactionId: settlementTransaction.id },
+    });
+
+    await recordAudit(tx, {
+      action: "invoice.settle",
+      entityType: "CreditCardInvoice",
+      entityId: invoice.id,
+      payload: {
+        payingAccountId: parsed.payingAccountId,
+        totalAmount: invoice.totalAmount.toString(),
+        paymentDate: parsed.paymentDate.toISOString(),
+      },
     });
 
     return settlementTransaction;

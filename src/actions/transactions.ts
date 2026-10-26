@@ -6,6 +6,9 @@ import { prisma } from "@/lib/prisma";
 import { decimalToDb, moneySchema, toDecimal } from "@/lib/money";
 import { computeReconciliationHash, normalizeDescription } from "@/lib/financial-engine/reconciliation";
 import { revalidateDashboard } from "@/lib/revalidate";
+import { assertAuthorized } from "@/lib/auth";
+import { DomainError } from "@/lib/errors";
+import { recordAudit } from "@/lib/audit";
 
 const createTransactionSchema = z.object({
   accountId: z.string().uuid(),
@@ -31,6 +34,7 @@ export type UpdateTransactionInput = z.input<typeof updateTransactionSchema>;
  * falha no meio do caminho.
  */
 export async function createTransaction(input: CreateTransactionInput) {
+  await assertAuthorized();
   const parsed = createTransactionSchema.parse(input);
   // EXPENSE deve sempre chegar negativo, INCOME sempre positivo — a UI só
   // pergunta o valor absoluto; o sinal é uma regra de domínio, não da tela.
@@ -83,6 +87,7 @@ export async function createTransaction(input: CreateTransactionInput) {
  * transação de banco.
  */
 export async function updateTransaction(input: UpdateTransactionInput) {
+  await assertAuthorized();
   const parsed = updateTransactionSchema.parse(input);
 
   const result = await prisma.$transaction(async (tx) => {
@@ -92,17 +97,17 @@ export async function updateTransaction(input: UpdateTransactionInput) {
     });
 
     if (existing.transferId) {
-      throw new Error(
+      throw new DomainError(
         "Esta transação faz parte de uma transferência — edite-a por transfers.ts.",
       );
     }
     if (existing.creditCardInvoiceId) {
-      throw new Error(
+      throw new DomainError(
         "Esta transação pertence a uma fatura de cartão — não pode ser editada isoladamente.",
       );
     }
     if (existing.invoiceSettlementFor) {
-      throw new Error(
+      throw new DomainError(
         "Esta transação liquidou uma fatura — não pode ser editada. Estorne pela fatura.",
       );
     }
@@ -164,6 +169,7 @@ const deleteTransactionSchema = z.object({ id: z.string().uuid() });
 
 /** Exclui uma transação manual e reverte seu efeito no saldo da conta. */
 export async function deleteTransaction(input: z.infer<typeof deleteTransactionSchema>) {
+  await assertAuthorized();
   const { id } = deleteTransactionSchema.parse(input);
 
   await prisma.$transaction(async (tx) => {
@@ -173,17 +179,17 @@ export async function deleteTransaction(input: z.infer<typeof deleteTransactionS
     });
 
     if (existing.transferId) {
-      throw new Error(
+      throw new DomainError(
         "Esta transação faz parte de uma transferência — exclua a transferência inteira.",
       );
     }
     if (existing.creditCardInvoiceId) {
-      throw new Error(
+      throw new DomainError(
         "Esta transação pertence a uma fatura de cartão — não pode ser excluída isoladamente.",
       );
     }
     if (existing.invoiceSettlementFor) {
-      throw new Error(
+      throw new DomainError(
         "Esta transação liquidou uma fatura — não pode ser excluída isoladamente.",
       );
     }
@@ -193,22 +199,81 @@ export async function deleteTransaction(input: z.infer<typeof deleteTransactionS
       where: { id: existing.accountId },
       data: { currentBalance: { decrement: existing.amount } },
     });
+
+    await recordAudit(tx, {
+      action: "transaction.delete",
+      entityType: "Transaction",
+      entityId: id,
+      payload: {
+        accountId: existing.accountId,
+        amount: existing.amount.toString(),
+        description: existing.description,
+      },
+    });
   });
 
   revalidateDashboard();
 }
 
-/** Exclui várias transações (reaproveita a validação/reversão de saldo de `deleteTransaction`). */
+/**
+ * Exclui várias transações em UMA única transação de banco: carrega e
+ * valida todas primeiro (qualquer violação aborta tudo — nunca exclui
+ * parcialmente), depois deleta em lote e ajusta o saldo de cada conta pelo
+ * somatório das transações excluídas daquela conta.
+ */
 export async function deleteTransactions(input: { ids: string[] }) {
+  await assertAuthorized();
   const { ids } = z.object({ ids: z.array(z.string().uuid()).min(1) }).parse(input);
-  const results = await Promise.allSettled(ids.map((id) => deleteTransaction({ id })));
-  const failed = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
-  if (failed.length > 0) {
-    throw new Error(
-      `${failed.length} de ${ids.length} transação(ões) não pôde(puderam) ser excluída(s): ` +
-        `${failed[0].reason instanceof Error ? failed[0].reason.message : String(failed[0].reason)}`,
+
+  await prisma.$transaction(async (tx) => {
+    const existing = await tx.transaction.findMany({
+      where: { id: { in: ids } },
+      include: { invoiceSettlementFor: { select: { id: true } } },
+    });
+
+    if (existing.length !== ids.length) {
+      throw new DomainError(
+        `${ids.length - existing.length} de ${ids.length} transação(ões) não foi(foram) encontrada(s). Nada foi excluído.`,
+      );
+    }
+
+    const blocked = existing.find(
+      (t) => t.transferId || t.creditCardInvoiceId || t.invoiceSettlementFor,
     );
-  }
+    if (blocked) {
+      throw new DomainError(
+        `A transação "${blocked.description}" está vinculada a transferência/fatura e não pode ser excluída isoladamente. Nada foi excluído.`,
+      );
+    }
+
+    // Saldo: agrupa o delta por conta (uma atualização por conta afetada).
+    const deltaByAccount = new Map<string, ReturnType<typeof toDecimal>>();
+    for (const t of existing) {
+      const current = deltaByAccount.get(t.accountId) ?? toDecimal(0);
+      deltaByAccount.set(t.accountId, current.plus(t.amount.toString()));
+    }
+
+    await tx.transaction.deleteMany({ where: { id: { in: ids } } });
+
+    for (const [accountId, total] of deltaByAccount) {
+      await tx.account.update({
+        where: { id: accountId },
+        data: { currentBalance: { decrement: decimalToDb(total) } },
+      });
+    }
+
+    await recordAudit(tx, {
+      action: "transaction.deleteMany",
+      entityType: "Transaction",
+      payload: {
+        ids,
+        count: existing.length,
+        accounts: Array.from(deltaByAccount.keys()),
+      },
+    });
+  });
+
+  revalidateDashboard();
 }
 
 const setCategorySchema = z.object({
@@ -218,6 +283,7 @@ const setCategorySchema = z.object({
 
 /** Recategoriza em lote — não afeta saldo (categoria é apenas metadado de relatório). */
 export async function setTransactionsCategory(input: z.infer<typeof setCategorySchema>) {
+  await assertAuthorized();
   const { ids, categoryId } = setCategorySchema.parse(input);
   await prisma.transaction.updateMany({ where: { id: { in: ids } }, data: { categoryId } });
   revalidateDashboard();
@@ -230,6 +296,7 @@ const setReconciledSchema = z.object({
 
 /** Marca/desmarca conciliação em lote. */
 export async function setTransactionsReconciled(input: z.infer<typeof setReconciledSchema>) {
+  await assertAuthorized();
   const { ids, isReconciled } = setReconciledSchema.parse(input);
   await prisma.transaction.updateMany({ where: { id: { in: ids } }, data: { isReconciled } });
   revalidateDashboard();

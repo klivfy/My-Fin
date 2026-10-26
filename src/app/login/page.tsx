@@ -6,6 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+function safeNextPath(value: string | null): string {
+  // Aceita apenas caminhos internos absolutos: bloqueia URLs externas
+  // ("https://…") e protocol-relative ("//evil.com") — open redirect.
+  if (value && value.startsWith("/") && !value.startsWith("//")) return value;
+  return "/";
+}
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -21,10 +28,20 @@ function LoginForm() {
       body: JSON.stringify({ token }),
     });
     if (!response.ok) {
+      if (response.status === 429) {
+        const payload = (await response.json().catch(() => null)) as { retryAfterSeconds?: number } | null;
+        const wait = payload?.retryAfterSeconds;
+        setError(
+          wait && wait > 0
+            ? `Muitas tentativas. Aguarde ${wait}s antes de tentar novamente.`
+            : "Muitas tentativas. Aguarde um pouco antes de tentar novamente.",
+        );
+        return;
+      }
       setError("Token inválido.");
       return;
     }
-    router.replace(searchParams.get("next") || "/");
+    router.replace(safeNextPath(searchParams.get("next")));
     router.refresh();
   }
 

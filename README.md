@@ -101,6 +101,27 @@ Em uso local o app fica aberto. Em deploy público (Netlify), defina
 `APP_ACCESS_TOKEN` nas variáveis de ambiente — o middleware passa a exigir
 login com esse token antes de qualquer rota (exceto `/login`).
 
+### Threat model (resumo)
+
+- **Autenticação**: token único (`APP_ACCESS_TOKEN`) → cookie de sessão
+  `__Host-myfin_access` com valor **derivado por HMAC** (o segredo nunca fica
+  no navegador). Comparação em tempo constante (`timingSafeEqual`).
+- **Brute force**: `/api/login` com rate limiting por IP e backoff
+  exponencial (HTTP 429 + `Retry-After`).
+- **Defesa em profundidade**: toda Server Action chama `assertAuthorized()`
+  — não depende apenas do matcher do middleware.
+- **Headers**: CSP, `X-Content-Type-Options: nosniff`, `frame-ancestors
+  'none'`, `Referrer-Policy: strict-origin-when-cross-origin`,
+  `Permissions-Policy` restritiva e HSTS (produção).
+- **Upload OFX**: limitado a 5 MB e 10.000 registros por arquivo; extensão
+  `.ofx` validada no servidor; contas de cartão rejeitadas (fluxo próprio).
+- **Auditoria**: ações destrutivas (exclusões, reversão de transferência,
+  liquidação de fatura, recálculo de saldo) gravam em `audit_logs`; falhas de
+  importação guardam mensagem genérica em `sync_logs` (detalhe técnico fica
+  no log do servidor).
+
+Limitações e recomendações de hospedagem: ver [SECURITY.md](SECURITY.md).
+
 ## Deploy (Netlify)
 
 `netlify.toml` já configura o build (`prisma generate && next build`) e o

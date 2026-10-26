@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { decimalToDb, moneySchema } from "@/lib/money";
 import { computeReconciliationHash } from "@/lib/financial-engine/reconciliation";
 import { revalidateDashboard } from "@/lib/revalidate";
+import { assertAuthorized } from "@/lib/auth";
+import { recordAudit } from "@/lib/audit";
 
 const createTransferSchema = z
   .object({
@@ -35,6 +37,7 @@ export type CreateTransferInput = z.input<typeof createTransferSchema>;
  * é persistido.
  */
 export async function createTransfer(input: CreateTransferInput) {
+  await assertAuthorized();
   const parsed = createTransferSchema.parse(input);
   const amountDb = decimalToDb(parsed.amount);
 
@@ -124,6 +127,7 @@ const deleteTransferSchema = z.object({ id: z.string().uuid() });
 
 /** Reverte uma transferência: exclui as duas pernas e desfaz o efeito no saldo. */
 export async function deleteTransfer(input: z.infer<typeof deleteTransferSchema>) {
+  await assertAuthorized();
   const { id } = deleteTransferSchema.parse(input);
 
   await prisma.$transaction(async (tx) => {
@@ -139,6 +143,17 @@ export async function deleteTransfer(input: z.infer<typeof deleteTransferSchema>
     await tx.account.update({
       where: { id: transfer.destinationAccountId },
       data: { currentBalance: { decrement: transfer.amount } },
+    });
+
+    await recordAudit(tx, {
+      action: "transfer.delete",
+      entityType: "Transfer",
+      entityId: id,
+      payload: {
+        sourceAccountId: transfer.sourceAccountId,
+        destinationAccountId: transfer.destinationAccountId,
+        amount: transfer.amount.toString(),
+      },
     });
   });
 

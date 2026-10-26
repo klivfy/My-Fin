@@ -149,6 +149,181 @@ export async function createInstallmentPurchase(input: CreateInstallmentPurchase
   return created;
 }
 
+const reverseSettlementSchema = z.object({ invoiceId: z.string().uuid() });
+
+/**
+ * Estorna a liquidação de uma fatura: cria o lançamento de estorno
+ * (ADJUSTMENT positivo na conta pagadora), devolve o comprometimento ao
+ * saldo do cartão, desmarca as parcelas como pagas e reabre a fatura.
+ * A transação de liquidação original é preservada (trilha), mas desvinculada.
+ */
+export async function reverseInvoiceSettlement(input: z.infer<typeof reverseSettlementSchema>) {
+  await assertAuthorized();
+  const parsed = reverseSettlementSchema.parse(input);
+
+  const reversal = await prisma.$transaction(async (tx) => {
+    const invoice = await tx.creditCardInvoice.findUniqueOrThrow({
+      where: { id: parsed.invoiceId },
+      include: { settlementTransaction: true },
+    });
+    if (invoice.status !== "PAID" || !invoice.settlementTransaction) {
+      throw new DomainError("Esta fatura não está liquidada — nada a estornar.");
+    }
+
+    const settlement = invoice.settlementTransaction;
+    const totalAmount = toDecimal(invoice.totalAmount.toString());
+
+    // Estorno: lançamento inverso na conta que pagou (crédito de volta).
+    const reversalTransaction = await tx.transaction.create({
+      data: {
+        accountId: settlement.accountId,
+        amount: decimalToDb(totalAmount),
+        type: "ADJUSTMENT",
+        description: "Estorno de pagamento de fatura de cartão de crédito",
+        originalDescription: `Estorno pagamento fatura ${invoice.id}`,
+        date: new Date(),
+        isPaid: true,
+        isReconciled: true,
+        reconciliationHash: computeReconciliationHash({
+          accountId: settlement.accountId,
+          date: new Date(),
+          amount: totalAmount,
+          description: `Estorno pagamento fatura ${invoice.id}`,
+          fitId: randomUUID(),
+        }),
+      },
+    });
+
+    await tx.account.update({
+      where: { id: settlement.accountId },
+      data: { currentBalance: { increment: decimalToDb(totalAmount) } },
+    });
+    await tx.account.update({
+      where: { id: invoice.accountId },
+      data: { currentBalance: { decrement: decimalToDb(totalAmount) } },
+    });
+
+    await tx.transaction.updateMany({
+      where: { creditCardInvoiceId: invoice.id },
+      data: { isPaid: false },
+    });
+
+    // Reabre a fatura e desvincula a liquidação (que permanece no extrato
+    // da conta pagadora como registro histórico).
+    await tx.creditCardInvoice.update({
+      where: { id: invoice.id },
+      data: { status: "OPEN", settlementTransactionId: null },
+    });
+
+    await recordAudit(tx, {
+      action: "invoice.reverseSettlement",
+      entityType: "CreditCardInvoice",
+      entityId: invoice.id,
+      payload: {
+        settlementTransactionId: settlement.id,
+        reversalTransactionId: reversalTransaction.id,
+        totalAmount: totalAmount.toFixed(2),
+      },
+    });
+
+    return reversalTransaction;
+  });
+
+  revalidateDashboard();
+  return reversal;
+}
+
+const adjustRemainingInstallmentsSchema = z.object({
+  rootTransactionId: z.string().uuid(),
+  /** Novo valor de CADA parcela restante (positivo; o sinal é aplicado pela regra de domínio). */
+  newInstallmentAmount: moneySchema.refine((v) => v.isPositive(), "O valor da parcela deve ser positivo."),
+});
+
+/**
+ * Ajusta o valor das parcelas RESTANTES (isPaid = false) de um parcelamento:
+ * recalcula os totais das faturas futuras afetadas e corrige o saldo
+ * comprometido do cartão pelo delta — tudo na mesma transação de banco.
+ * Parcelas já pagas/liquidadas nunca são tocadas.
+ */
+export async function adjustRemainingInstallments(input: z.input<typeof adjustRemainingInstallmentsSchema>) {
+  await assertAuthorized();
+  const parsed = adjustRemainingInstallmentsSchema.parse(input);
+
+  const result = await prisma.$transaction(async (tx) => {
+    const root = await tx.transaction.findUniqueOrThrow({
+      where: { id: parsed.rootTransactionId },
+    });
+    if (!root.totalInstallments || root.type !== "EXPENSE") {
+      throw new DomainError("Esta transação não é um parcelamento.");
+    }
+
+    const rootId = root.parentTransactionId ?? root.id;
+    const legs = await tx.transaction.findMany({
+      where: {
+        OR: [{ id: rootId }, { parentTransactionId: rootId }],
+        isPaid: false,
+        // Parcelas de faturas já liquidadas não podem ser alteradas.
+        creditCardInvoice: { status: { not: "PAID" } },
+      },
+      include: { creditCardInvoice: { select: { id: true } } },
+    });
+
+    if (legs.length === 0) {
+      throw new DomainError("Não há parcelas pendentes para ajustar.");
+    }
+
+    const newAmount = parsed.newInstallmentAmount.abs().negated();
+    let cardDelta = new Decimal(0);
+    const invoiceDelta = new Map<string, Decimal>();
+
+    for (const leg of legs) {
+      const oldAbs = toDecimal(leg.amount.toString()).abs();
+      const diff = parsed.newInstallmentAmount.abs().minus(oldAbs);
+      if (diff.isZero()) continue;
+
+      await tx.transaction.update({
+        where: { id: leg.id },
+        data: { amount: decimalToDb(newAmount) },
+      });
+      // Cartão: saldo negativo = dívida. Parcela maior → saldo mais negativo.
+      cardDelta = cardDelta.minus(diff);
+      if (leg.creditCardInvoiceId) {
+        const prev = invoiceDelta.get(leg.creditCardInvoiceId) ?? new Decimal(0);
+        invoiceDelta.set(leg.creditCardInvoiceId, prev.plus(diff));
+      }
+    }
+
+    if (!cardDelta.isZero()) {
+      await tx.account.update({
+        where: { id: root.accountId },
+        data: { currentBalance: { increment: decimalToDb(cardDelta) } },
+      });
+    }
+    for (const [invoiceId, delta] of invoiceDelta) {
+      await tx.creditCardInvoice.update({
+        where: { id: invoiceId },
+        data: { totalAmount: { increment: decimalToDb(delta) } },
+      });
+    }
+
+    await recordAudit(tx, {
+      action: "installment.adjustRemaining",
+      entityType: "Transaction",
+      entityId: rootId,
+      payload: {
+        adjustedLegs: legs.length,
+        newInstallmentAmount: parsed.newInstallmentAmount.toFixed(2),
+        cardDelta: cardDelta.toFixed(2),
+      },
+    });
+
+    return { adjustedLegs: legs.length };
+  });
+
+  revalidateDashboard();
+  return result;
+}
+
 const settleInvoiceSchema = z.object({
   invoiceId: z.string().uuid(),
   payingAccountId: z.string().uuid(),

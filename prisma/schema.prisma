@@ -58,8 +58,14 @@ enum InvoiceStatus {
   PAID
 }
 
+enum RecurrenceFrequency {
+  WEEKLY
+  MONTHLY
+}
+
 enum SyncProvider {
   OFX_IMPORT
+  CSV_IMPORT
   INTER_API
   MOCK
 }
@@ -98,6 +104,8 @@ model Account {
   creditCardInvoices CreditCardInvoice[]
   transfersOut       Transfer[]          @relation("TransferSource")
   transfersIn        Transfer[]          @relation("TransferDestination")
+  savingsGoals       SavingsGoal[]
+  scheduledTransactions ScheduledTransaction[]
 
   @@index([type])
   @@index([isActive])
@@ -123,6 +131,8 @@ model Category {
   children Category[] @relation("CategoryHierarchy")
 
   transactions Transaction[]
+  rules        CategoryRule[]
+  scheduledTransactions ScheduledTransaction[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -292,6 +302,82 @@ model SyncLog {
 
   @@index([provider, status])
   @@map("sync_logs")
+}
+
+// ----------------------------------------------------------------------------
+// CategoryRule
+// ----------------------------------------------------------------------------
+
+/// Regra de categorização automática: quando a descrição normalizada da
+/// transação contém `pattern` (case-insensitive, substring simples), a
+/// categoria é atribuída na ingestão (OFX/CSV/Inter) ou via "aplicar regras".
+model CategoryRule {
+  id         String   @id @default(uuid())
+  pattern    String
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  priority   Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@unique([pattern, categoryId])
+  @@index([categoryId])
+  @@map("category_rules")
+}
+
+// ----------------------------------------------------------------------------
+// SavingsGoal
+// ----------------------------------------------------------------------------
+
+/// Meta de poupança vinculada a uma conta de destino: acompanha o progresso
+/// do saldo da conta em direção ao valor-alvo dentro de um prazo.
+model SavingsGoal {
+  id              String   @id @default(uuid())
+  name            String
+  targetAmount    Decimal  @db.Decimal(12, 2)
+  targetDate      DateTime
+  accountId       String
+  account         Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([accountId])
+  @@map("savings_goals")
+}
+
+// ----------------------------------------------------------------------------
+// ScheduledTransaction
+// ----------------------------------------------------------------------------
+
+/// Lançamento recorrente/agendado: materializa `Transaction`s reais (com
+/// `isPaid: false` até a data) a cada rodada de
+/// `materializeScheduledTransactions` (Netlify Scheduled Function diária).
+model ScheduledTransaction {
+  id              String             @id @default(uuid())
+  accountId       String
+  account         Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  categoryId      String?
+  category        Category?          @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  amount          Decimal            @db.Decimal(12, 2)
+  type            TransactionType
+  description     String
+
+  frequency       RecurrenceFrequency
+  /// Dia do mês (MONTHLY) ou dia da semana 0–6 (WEEKLY, 0 = domingo).
+  dayOfRecurrence Int
+  startDate       DateTime
+  /// Número total de ocorrências; nulo = recorrência sem fim.
+  occurrences     Int?
+
+  /// Quantas ocorrências já foram materializadas.
+  generatedCount  Int                @default(0)
+  isActive        Boolean            @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([accountId, isActive])
+  @@map("scheduled_transactions")
 }
 
 // ----------------------------------------------------------------------------

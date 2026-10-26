@@ -2,9 +2,8 @@
 
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { toDecimal } from "@/lib/money";
 import { OfxAdapter } from "@/lib/financial-engine/ofx-adapter";
-import { hashTransactions, partitionByExistingHash } from "@/lib/financial-engine/reconciliation";
+import { persistNormalizedTransactions } from "@/lib/financial-engine/ingest";
 import { revalidateDashboard } from "@/lib/revalidate";
 import { assertAuthorized } from "@/lib/auth";
 import { DomainError, safeErrorMessage } from "@/lib/errors";
@@ -85,41 +84,19 @@ export async function importOfx(formData: FormData): Promise<ImportOfxResult> {
       return { recordsProcessed: 0, recordsInserted: 0, recordsSkipped: 0, syncLogId: syncLog.id };
     }
 
-    const hashed = hashTransactions(accountId, normalized);
-    const { toInsert, duplicates } = await partitionByExistingHash(hashed);
-
-    if (toInsert.length > 0) {
-      await prisma.$transaction(async (tx) => {
-        await tx.transaction.createMany({
-          data: toInsert.map((t) => ({
-            accountId,
-            amount: t.amount.toFixed(2),
-            type: t.amount.isNegative() ? "EXPENSE" : "INCOME",
-            description: t.description,
-            originalDescription: t.originalDescription,
-            date: t.date,
-            isPaid: true,
-            isReconciled: false,
-            reconciliationHash: t.reconciliationHash,
-            syncLogId: syncLog.id,
-          })),
-        });
-
-        const totalInserted = toInsert.reduce((sum, t) => sum.plus(t.amount), toDecimal(0));
-        await tx.account.update({
-          where: { id: accountId },
-          data: { currentBalance: { increment: totalInserted.toFixed(2) } },
-        });
-      });
-    }
+    const { inserted, skipped } = await persistNormalizedTransactions({
+      accountId,
+      normalized,
+      syncLogId: syncLog.id,
+    });
 
     await prisma.syncLog.update({
       where: { id: syncLog.id },
       data: {
         status: "SUCCESS",
         recordsProcessed: normalized.length,
-        recordsInserted: toInsert.length,
-        recordsSkipped: duplicates.length,
+        recordsInserted: inserted,
+        recordsSkipped: skipped,
         finishedAt: new Date(),
       },
     });
@@ -133,15 +110,15 @@ export async function importOfx(formData: FormData): Promise<ImportOfxResult> {
       payload: {
         accountId,
         recordsProcessed: normalized.length,
-        recordsInserted: toInsert.length,
-        recordsSkipped: duplicates.length,
+        recordsInserted: inserted,
+        recordsSkipped: skipped,
       },
     });
 
     return {
       recordsProcessed: normalized.length,
-      recordsInserted: toInsert.length,
-      recordsSkipped: duplicates.length,
+      recordsInserted: inserted,
+      recordsSkipped: skipped,
       syncLogId: syncLog.id,
     };
   } catch (error) {

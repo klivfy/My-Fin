@@ -210,3 +210,21 @@
   transition: filter 150ms ease;
   user-select: none;
 }
+
+/* Safe-areas (notch iPhone/iPad, gestos Android): o shell do PWA instalado
+   cobre a tela inteira com viewport-fit=cover; estes utilitários mantêm o
+   conteúdo interativo fora das áreas do sistema. */
+@layer utilities {
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pl-safe {
+    padding-left: env(safe-area-inset-left);
+  }
+  .pr-safe {
+    padding-right: env(safe-area-inset-right);
+  }
+}

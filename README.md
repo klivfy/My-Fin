@@ -88,18 +88,64 @@ npm run db:seed      # popula dados de teste (idempotente — reexecutar não du
 ### UI (`src/app/(dashboard)`)
 
 Shell com Navigation Rail, Top App Bar (seletor de período, indicador de
-sincronização, Modo Privacidade, FAB de nova transação) e 4 telas:
+sincronização, Modo Privacidade, FAB de nova transação) e 5 telas:
 Dashboard (KPIs, fluxo de caixa realizado vs. projetado, despesas por
-categoria), Extrato (dropzone de OFX, tabela de alta densidade, ações em
-lote), Contas (grid de contas + módulo de cartão de crédito com régua de
-fatura e parcelamentos ativos) e Orçamentos (progresso por categoria com
-alerta de ritmo de queima acelerado).
+categoria), Extrato (dropzones de OFX e CSV com mapeamento de colunas,
+exportação CSV/backup JSON, tabela com edição inline e ações em lote),
+Contas (CRUD de contas, módulo de cartão de crédito com régua de fatura,
+estorno de liquidação, auditoria de saldo e lançamentos recorrentes),
+Orçamentos (teto por categoria editável, metas de poupança e regras de
+categorização automática) e Relatórios (comparativo mensal, médias por
+categoria, maiores despesas).
+
+### Automação
+
+- **Regras de categorização**: padrões (substring, case/accent-insensitive)
+  aplicados na ingestão OFX/CSV e sob demanda no extrato.
+- **Lançamentos recorrentes**: `ScheduledTransaction` (mensal/semanal,
+  ocorrências opcionais) materializada por
+  `materializeScheduledTransactions` — Netlify Scheduled Function diária ou
+  botão "Processar vencidos" na tela Contas.
+- **Integração Inter**: `InterApiAdapter` com OAuth2 + mTLS (cliente HTTP
+  injetável; credenciais via env em Base64).
+
+## Plataformas
+
+O app é um **PWA** (Progressive Web App): uma única base cobre Web 100%,
+Windows (instalável/Store), Android (TWA/Play Store), iOS/iPadOS (Adicionar
+à Tela de Início) e extensões Chromium/Edge/Firefox (`extension/`).
+
+- Manifest + ícones maskable + service worker (offline-first apenas para
+  assets; dados financeiros sempre da rede) em `public/`.
+- Guia completo de empacotamento por loja: [docs/PLATFORMS.md](docs/PLATFORMS.md).
+- Ícones regeneráveis: `npm run icons:generate`.
 
 ## Segurança
 
 Em uso local o app fica aberto. Em deploy público (Netlify), defina
 `APP_ACCESS_TOKEN` nas variáveis de ambiente — o middleware passa a exigir
 login com esse token antes de qualquer rota (exceto `/login`).
+
+### Threat model (resumo)
+
+- **Autenticação**: token único (`APP_ACCESS_TOKEN`) → cookie de sessão
+  `__Host-myfin_access` com valor **derivado por HMAC** (o segredo nunca fica
+  no navegador). Comparação em tempo constante (`timingSafeEqual`).
+- **Brute force**: `/api/login` com rate limiting por IP e backoff
+  exponencial (HTTP 429 + `Retry-After`).
+- **Defesa em profundidade**: toda Server Action chama `assertAuthorized()`
+  — não depende apenas do matcher do middleware.
+- **Headers**: CSP, `X-Content-Type-Options: nosniff`, `frame-ancestors
+  'none'`, `Referrer-Policy: strict-origin-when-cross-origin`,
+  `Permissions-Policy` restritiva e HSTS (produção).
+- **Upload OFX**: limitado a 5 MB e 10.000 registros por arquivo; extensão
+  `.ofx` validada no servidor; contas de cartão rejeitadas (fluxo próprio).
+- **Auditoria**: ações destrutivas (exclusões, reversão de transferência,
+  liquidação de fatura, recálculo de saldo) gravam em `audit_logs`; falhas de
+  importação guardam mensagem genérica em `sync_logs` (detalhe técnico fica
+  no log do servidor).
+
+Limitações e recomendações de hospedagem: ver [SECURITY.md](SECURITY.md).
 
 ## Deploy (Netlify)
 

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { parseAccountMetadata } from "@/lib/account-metadata";
 
 export interface InvoiceSummary {
   id: string;
@@ -27,6 +28,8 @@ export interface AccountView {
   type: "CHECKING" | "SAVINGS" | "CREDIT_CARD" | "INVESTMENT" | "CASH";
   currentBalance: string;
   creditLimit: string | null;
+  closingDay: number | null;
+  dueDay: number | null;
   creditCard: CreditCardView | null;
 }
 
@@ -47,7 +50,14 @@ export async function listAccountViews(): Promise<AccountView[]> {
     const accountIds = creditCardAccounts.map((a) => a.id);
 
     const invoices = await prisma.creditCardInvoice.findMany({
-      where: { accountId: { in: accountIds }, status: { not: "PAID" } },
+      where: {
+        accountId: { in: accountIds },
+        OR: [
+          { status: { not: "PAID" } },
+          // Faturas pagas recentemente (90 dias) aparecem para permitir estorno.
+          { status: "PAID", updatedAt: { gte: new Date(Date.now() - 90 * 86_400_000) } },
+        ],
+      },
       orderBy: { closingDate: "asc" },
     });
     for (const invoice of invoices) {
@@ -107,14 +117,16 @@ export async function listAccountViews(): Promise<AccountView[]> {
   }
 
   return accounts.map((account) => {
-    const metadata = (account.metadata as { creditLimit?: string } | null) ?? null;
+    const metadata = parseAccountMetadata(account.metadata);
     const isCreditCard = account.type === "CREDIT_CARD";
     return {
       id: account.id,
       name: account.name,
       type: account.type,
       currentBalance: account.currentBalance.toString(),
-      creditLimit: metadata?.creditLimit ?? null,
+      creditLimit: metadata.creditLimit ?? null,
+      closingDay: metadata.closingDay ?? null,
+      dueDay: metadata.dueDay ?? null,
       creditCard: isCreditCard
         ? {
             invoices: invoicesByAccount.get(account.id) ?? [],

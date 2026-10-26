@@ -41,4 +41,52 @@ jobs:
 
       - run: npm run typecheck
 
+      - run: npm run test
+
       - run: npm run build
+
+  audit:
+    name: Auditoria de dependências
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Falha em vulnerabilidades high/critical nas dependências
+        run: npm audit --audit-level=high --omit=dev
+
+  integration:
+    name: Testes de integração (Postgres)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: myfin
+          POSTGRES_PASSWORD: myfin
+          POSTGRES_DB: myfin_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U myfin"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: ******localhost:5432/myfin_test?schema=public
+      DIRECT_URL: ******localhost:5432/myfin_test?schema=public
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Aplicar migrações no banco de teste
+        run: npx prisma migrate deploy
+
+      - name: Testes de integração das Server Actions
+        run: npx vitest run src/actions/__integration__

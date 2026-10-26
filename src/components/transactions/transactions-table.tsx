@@ -24,6 +24,7 @@ import {
   setTransactionsCategory,
   setTransactionsReconciled,
 } from "@/actions/transactions";
+import { EditTransactionDialog } from "./edit-transaction-dialog";
 import { cn } from "@/lib/utils";
 
 export interface TransactionRow {
@@ -171,12 +172,13 @@ export function TransactionsTable({
               <TableHead>Categoria</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">{renderSortButton("amount", "Valor", "ml-auto")}</TableHead>
+              <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-10 text-center text-sm text-on-surface-variant">
+                <TableCell colSpan={9} className="py-10 text-center text-sm text-on-surface-variant">
                   Nenhuma transação encontrada para os filtros atuais.
                 </TableCell>
               </TableRow>
@@ -244,6 +246,9 @@ export function TransactionsTable({
                   </TableCell>
                   <TableCell className="text-right">
                     <Money value={row.amount} tone={row.type === "TRANSFER" ? "transfer" : "auto"} />
+                  </TableCell>
+                  <TableCell>
+                    <EditTransactionDialog row={row} categories={categories} />
                   </TableCell>
                 </TableRow>
               ))

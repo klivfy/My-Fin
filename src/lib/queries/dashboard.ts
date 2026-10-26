@@ -38,73 +38,49 @@ export interface DashboardData {
  * cálculo intermediário roda em `Decimal` — a conversão para `number` só
  * acontece no fim, na fronteira com os componentes de gráfico (Recharts
  * exige `number` primitivo).
+ *
+ * Escala: nenhuma query varre o histórico inteiro. O ponto de partida da
+ * série diária é o `currentBalance` materializado (invariante mantido
+ * atomicamente pelas Server Actions) menos a movimentação do próprio
+ * período — agregada no SQL com `groupBy` por dia.
  */
 export async function getDashboardData(range: PeriodRange): Promise<DashboardData> {
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
 
-  const [accounts, transactionsUpToRangeEnd, totalTransactionCount] = await Promise.all([
-    prisma.account.findMany({ where: { isActive: true }, select: { initialBalance: true, currentBalance: true } }),
-    prisma.transaction.findMany({
-      where: { account: { isActive: true }, date: { lte: range.to } },
-      select: { date: true, amount: true },
-      orderBy: { date: "asc" },
+  const [accounts, totalsByType, totalTransactionCount, movementAfterRange] = await Promise.all([
+    prisma.account.findMany({
+      where: { isActive: true },
+      select: { currentBalance: true },
+    }),
+    // Receita/despesa do período agregadas no banco (sem trazer linhas).
+    prisma.transaction.groupBy({
+      by: ["type"],
+      where: {
+        account: { isActive: true },
+        date: { gte: range.from, lte: range.to },
+        type: { in: ["INCOME", "EXPENSE"] },
+      },
+      _sum: { amount: true },
     }),
     prisma.transaction.count(),
+    // Movimento POSTERIOR ao período (parcelas futuras, lançamentos
+    // agendados): precisa ser descontado do saldo materializado para obter
+    // o saldo exato no fim do período exibido. Agregado no SQL.
+    prisma.transaction.aggregate({
+      where: { account: { isActive: true }, date: { gt: range.to } },
+      _sum: { amount: true },
+    }),
   ]);
 
   const netWorth = accounts.reduce((sum, a) => sum.plus(a.currentBalance.toString()), new Decimal(0));
-  const initialBalanceSum = accounts.reduce(
-    (sum, a) => sum.plus(a.initialBalance.toString()),
-    new Decimal(0),
-  );
 
-  // --- Série diária de saldo acumulado (realizado x projetado) ---
-  const balanceByDay = new Map<string, Decimal>();
-  let running = initialBalanceSum;
-  for (const tx of transactionsUpToRangeEnd) {
-    running = running.plus(tx.amount.toString());
-    const day = toIsoDay(tx.date);
-    balanceByDay.set(day, running); // última ocorrência do dia vence — ordenado asc
-  }
-
-  const dailyBalanceSeries: DailyBalancePoint[] = [];
-  let carry = initialBalanceSum;
-  // Preenche o saldo acumulado de todo dia anterior ao início do período
-  // (para o carry-forward começar correto), sem emitir esses pontos.
-  for (const [day, value] of balanceByDay) {
-    if (day < toIsoDay(range.from)) carry = value;
-  }
-
-  for (let cursor = new Date(range.from); cursor <= range.to; cursor = addDays(cursor, 1)) {
-    const day = toIsoDay(cursor);
-    if (balanceByDay.has(day)) carry = balanceByDay.get(day)!;
-    const isFuture = cursor > today;
-    dailyBalanceSeries.push({
-      date: day,
-      realized: isFuture ? null : carry.toDecimalPlaces(2).toNumber(),
-      projected: carry.toDecimalPlaces(2).toNumber(),
-    });
-  }
-
-  const netWorthSparkline = dailyBalanceSeries.map((point) => point.projected);
-
-  // --- Entradas vs Saídas do período (exclui TRANSFER/ADJUSTMENT) ---
-  const periodTransactions = await prisma.transaction.findMany({
-    where: {
-      account: { isActive: true },
-      date: { gte: range.from, lte: range.to },
-      type: { in: ["INCOME", "EXPENSE"] },
-    },
-    select: { amount: true, type: true, categoryId: true, category: { select: { name: true, color: true } } },
-  });
-
-  const income = periodTransactions
-    .filter((t) => t.type === "INCOME")
-    .reduce((sum, t) => sum.plus(t.amount.toString()), new Decimal(0));
-  const expense = periodTransactions
-    .filter((t) => t.type === "EXPENSE")
-    .reduce((sum, t) => sum.plus(t.amount.toString()), new Decimal(0));
+  const income = totalsByType
+    .filter((row) => row.type === "INCOME")
+    .reduce((sum, row) => sum.plus(row._sum.amount?.toString() ?? "0"), new Decimal(0));
+  const expense = totalsByType
+    .filter((row) => row.type === "EXPENSE")
+    .reduce((sum, row) => sum.plus(row._sum.amount?.toString() ?? "0"), new Decimal(0));
 
   const savingsRatePct = income.isZero() ? null : income.plus(expense).dividedBy(income).toNumber();
 
@@ -117,10 +93,57 @@ export async function getDashboardData(range: PeriodRange): Promise<DashboardDat
   );
   const dailyBurnRate = expense.abs().dividedBy(daysElapsed).toDecimalPlaces(2).toNumber();
 
-  // --- Despesas por categoria ---
+  // --- Série diária de saldo acumulado (realizado x projetado) ---
+  // Apenas as transações do período visível são buscadas (bounded), já
+  // agregadas por dia no SQL. O carry-forward inicial é derivado do saldo
+  // materializado: saldo(range.to) = netWorth - movimento posterior ao
+  // período; saldo de abertura = saldo(range.to) - movimento do período.
+  const dailyDeltas = await prisma.transaction.groupBy({
+    by: ["date"],
+    where: { account: { isActive: true }, date: { gte: range.from, lte: range.to } },
+    _sum: { amount: true },
+  });
+
+  const periodMovement = dailyDeltas.reduce(
+    (sum, row) => sum.plus(row._sum.amount?.toString() ?? "0"),
+    new Decimal(0),
+  );
+  const balanceAtRangeEnd = netWorth.minus(movementAfterRange._sum.amount?.toString() ?? "0");
+  let carry = balanceAtRangeEnd.minus(periodMovement);
+
+  const deltaByDay = new Map<string, Decimal>();
+  for (const row of dailyDeltas) {
+    const day = toIsoDay(row.date);
+    const prev = deltaByDay.get(day) ?? new Decimal(0);
+    deltaByDay.set(day, prev.plus(row._sum.amount?.toString() ?? "0"));
+  }
+
+  const dailyBalanceSeries: DailyBalancePoint[] = [];
+  for (let cursor = new Date(range.from); cursor <= range.to; cursor = addDays(cursor, 1)) {
+    const day = toIsoDay(cursor);
+    carry = carry.plus(deltaByDay.get(day) ?? 0);
+    const isFuture = cursor > today;
+    dailyBalanceSeries.push({
+      date: day,
+      realized: isFuture ? null : carry.toDecimalPlaces(2).toNumber(),
+      projected: carry.toDecimalPlaces(2).toNumber(),
+    });
+  }
+
+  const netWorthSparkline = dailyBalanceSeries.map((point) => point.projected);
+
+  // --- Despesas por categoria (bounded ao período) ---
+  const periodTransactions = await prisma.transaction.findMany({
+    where: {
+      account: { isActive: true },
+      date: { gte: range.from, lte: range.to },
+      type: "EXPENSE",
+    },
+    select: { amount: true, categoryId: true, category: { select: { name: true, color: true } } },
+  });
+
   const breakdownMap = new Map<string, { name: string; color: string; total: Decimal }>();
   for (const t of periodTransactions) {
-    if (t.type !== "EXPENSE") continue;
     const key = t.categoryId ?? "uncategorized";
     const existing = breakdownMap.get(key);
     const amountAbs = toDecimal(t.amount.toString()).abs();

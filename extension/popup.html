@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>My-Fin</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        width: 300px;
+        font-family: system-ui, -apple-system, sans-serif;
+        background: #171717;
+        color: #fafafa;
+      }
+      .wrap {
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      h1 {
+        font-size: 15px;
+        margin: 0;
+      }
+      .sub {
+        font-size: 12px;
+        color: #a3a3a3;
+        margin: 0;
+      }
+      button,
+      a.link {
+        display: block;
+        width: 100%;
+        padding: 8px 12px;
+        border-radius: 8px;
+        border: 1px solid #404040;
+        background: #262626;
+        color: #fafafa;
+        font-size: 13px;
+        text-align: left;
+        text-decoration: none;
+        cursor: pointer;
+        box-sizing: border-box;
+      }
+      button:hover,
+      a.link:hover {
+        background: #333;
+      }
+      input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px;
+        border-radius: 8px;
+        border: 1px solid #404040;
+        background: #0a0a0a;
+        color: #fafafa;
+        font-size: 12px;
+      }
+      label {
+        font-size: 11px;
+        color: #a3a3a3;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div>
+        <h1>My-Fin</h1>
+        <p class="sub">Gerenciador Financeiro Pessoal</p>
+      </div>
+      <a class="link" id="open-app" href="#">Abrir o app</a>
+      <a class="link" id="open-new" href="#">Nova transação</a>
+      <a class="link" id="open-budgets" href="#">Orçamentos</a>
+      <div>
+        <label for="app-url">URL do app</label>
+        <input id="app-url" type="url" placeholder="https://my-fin.netlify.app" />
+      </div>
+    </div>
+    <script src="popup.js"></script>
+  </body>
+</html>

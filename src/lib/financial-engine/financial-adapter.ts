@@ -32,7 +32,7 @@ export interface DateRange {
  */
 export interface FinancialAdapter {
   /** Identifica a fonte para logs e para `SyncLog.provider`. */
-  readonly source: "OFX_IMPORT" | "INTER_API" | "MOCK";
+  readonly source: "OFX_IMPORT" | "CSV_IMPORT" | "INTER_API" | "MOCK";
 
   /**
    * Ponto de entrada de alto nível: obtém e normaliza as transações do

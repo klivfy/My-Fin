@@ -11,25 +11,26 @@ import { writeFileSync } from "node:fs";
 const BG = [23, 23, 23]; // quase preto (tema escuro)
 const FG = [250, 250, 250]; // branco
 
-// Glyphs 5x7 para M e F (1 = pixel aceso).
+// Glyphs 7×7 reproduzindo o logo oficial: "M" com diagonais centrais
+// afundadas (degrau) e "F" de hastes largas — pixel-art, branco sobre escuro.
 const GLYPHS = {
   M: [
-    [1, 0, 0, 0, 1],
-    [1, 1, 0, 1, 1],
-    [1, 0, 1, 0, 1],
-    [1, 0, 0, 0, 1],
-    [1, 0, 0, 0, 1],
-    [1, 0, 0, 0, 1],
-    [1, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 1],
+    [1, 1, 0, 0, 0, 1, 1],
+    [1, 1, 0, 0, 0, 1, 1],
+    [1, 0, 1, 0, 1, 0, 1],
+    [1, 0, 1, 0, 1, 0, 1],
+    [1, 0, 0, 1, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 1],
   ],
   F: [
-    [1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 0],
-    [1, 0, 0, 0, 0],
-    [1, 1, 1, 1, 0],
-    [1, 0, 0, 0, 0],
-    [1, 0, 0, 0, 0],
-    [1, 0, 0, 0, 0],
+    [1, 1, 1, 1, 1, 1, 1],
+    [1, 1, 1, 1, 1, 1, 1],
+    [1, 0, 0, 0, 0, 0, 0],
+    [1, 1, 1, 1, 1, 1, 0],
+    [1, 1, 1, 1, 1, 1, 0],
+    [1, 0, 0, 0, 0, 0, 0],
+    [1, 0, 0, 0, 0, 0, 0],
   ],
 };
 
@@ -42,9 +43,9 @@ function renderPng(size, { maskable = false } = {}) {
   }
 
   // Zona segura: maskable exige o conteúdo no centro (margem ~20%).
-  const safeFraction = maskable ? 0.5 : 0.6;
-  const glyphW = 5;
-  const gap = 1;
+  const safeFraction = maskable ? 0.5 : 0.66;
+  const glyphW = 7;
+  const gap = 2;
   const totalUnits = glyphW * 2 + gap; // M + espaço + F
   const pixel = Math.max(1, Math.floor((size * safeFraction) / 7));
   const totalWidth = totalUnits * pixel;
@@ -121,6 +122,10 @@ writeFileSync(`${outDir}icon-512.png`, renderPng(512));
 writeFileSync(`${outDir}icon-maskable-192.png`, renderPng(192, { maskable: true }));
 writeFileSync(`${outDir}icon-maskable-512.png`, renderPng(512, { maskable: true }));
 writeFileSync(`${outDir}apple-touch-icon.png`, renderPng(180));
+// Tamanhos exigidos pelas lojas de extensão (Chrome/Edge/Firefox).
+for (const size of [16, 48, 96, 128]) {
+  writeFileSync(`${outDir}icon-${size}.png`, renderPng(size));
+}
 
 // Favicon 32×32: PNG servido em /favicon.ico (browsers modernos aceitam
 // conteúdo PNG nesse caminho; é o que o Next já faz com src/app/favicon.ico).

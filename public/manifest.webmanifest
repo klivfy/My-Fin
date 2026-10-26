@@ -11,6 +11,14 @@
   "theme_color": "#171717",
   "lang": "pt-BR",
   "categories": ["finance", "productivity"],
+  "handle_links": "preferred",
+  "launch_handler": { "client_mode": "navigate-existing" },
+  "protocol_handlers": [
+    {
+      "protocol": "web+myfin",
+      "url": "/transactions?search=%s"
+    }
+  ],
   "icons": [
     {
       "src": "/icons/icon-192.png",

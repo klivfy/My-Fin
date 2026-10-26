@@ -1,0 +1,50 @@
+{
+  "$schema": "https://raw.githubusercontent.com/GoogleChromeLabs/bubblewrap/main/packages/cli/twa-manifest-schema.json",
+  "packageId": "app.myfin.twa",
+  "host": "my-fin.netlify.app",
+  "name": "My-Fin — Gerenciador Financeiro",
+  "launcherName": "My-Fin",
+  "display": "standalone",
+  "themeColor": "#171717",
+  "navigationColor": "#171717",
+  "navigationColorDark": "#171717",
+  "navigationDividerColor": "#171717",
+  "backgroundColor": "#171717",
+  "enableNotifications": false,
+  "startUrl": "/",
+  "iconUrl": "https://my-fin.netlify.app/icons/icon-512.png",
+  "maskableIconUrl": "https://my-fin.netlify.app/icons/icon-maskable-512.png",
+  "splashScreenFadeOutDuration": 200,
+  "signingKey": {
+    "path": "./myfin.keystore",
+    "alias": "myfin"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [
+    {
+      "name": "Nova transação",
+      "shortName": "Transação",
+      "url": "/transactions",
+      "chosenIconUrl": "https://my-fin.netlify.app/icons/icon-192.png"
+    },
+    {
+      "name": "Orçamentos",
+      "shortName": "Orçamentos",
+      "url": "/budgets",
+      "chosenIconUrl": "https://my-fin.netlify.app/icons/icon-192.png"
+    }
+  ],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://my-fin.netlify.app/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": { "enabled": false },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "minSdkVersion": 24,
+  "orientation": "default",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": []
+}

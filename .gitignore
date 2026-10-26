@@ -19,6 +19,11 @@
 
 # production
 /build
+/dist
+
+# chaves de assinatura (TWA/Android) — nunca commitar
+*.keystore
+*.jks
 
 # misc
 .DS_Store

@@ -53,15 +53,46 @@ Código em `extension/` (Manifest V3):
 - **Popup** com links rápidos e URL do app configurável.
 - **Omnibox**: digite `fin` + Tab na barra de endereço para abrir o app ou
   buscar no extrato.
-- **Firefox**: use `manifest.firefox.json` (renomeie para `manifest.json` ao
-  empacotar) — inclui `browser_specific_settings.gecko` (mín. Firefox 109).
+- **Firefox**: o pacote gerado já troca o manifest pelo adaptado
+  (`browser_specific_settings.gecko`, mín. Firefox 109).
+
+Empacotamento (sem dependências — ZIP gerado por script):
+
+```bash
+npm run extension:package
+# → dist/myfin-chromium.zip (Chrome Web Store + Edge Add-ons)
+# → dist/myfin-firefox.zip  (Firefox Add-ons / AMO)
+```
 
 Publicação:
 
-- Chrome Web Store: `chrome://extensions` → modo dev para testar; loja via
-  ZIP do diretório.
-- Edge Add-ons: mesmo pacote do Chrome.
-- Firefox Add-ons: `web-ext build` (ou ZIP) com o manifest adaptado.
+- **Chrome Web Store**: teste local em `chrome://extensions` (modo dev,
+  "carregar sem compactação" apontando para `extension/`); suba o ZIP na loja.
+- **Edge Add-ons**: mesmo ZIP do Chromium no Partner Center.
+- **Firefox Add-ons**: suba `myfin-firefox.zip` no AMO — código JS puro, sem
+  minificação, revisão rápida.
+
+## Checklist de release por loja
+
+### Play Store (Android)
+- [ ] Deploy em produção com HTTPS e domínio definitivo.
+- [ ] `twa/twa-manifest.json` com `host`/`packageId` definitivos.
+- [ ] Keystore gerada (fora do git) e SHA-256 em `public/.well-known/assetlinks.json` acessível publicamente.
+- [ ] `bubblewrap build` → `.aab` assinado.
+- [ ] Listagem de `store-assets/play/listing.md` + feature graphic (gerado) + screenshots.
+- [ ] URL da política de privacidade (hospedar `docs/PRIVACY.md`).
+
+### Microsoft Store (Windows)
+- [ ] PWABuilder sobre a URL de produção → `.msixbundle`.
+- [ ] Partner Center: novo app + upload do pacote + listagem de `store-assets/microsoft/listing.md`.
+
+### Edge Add-ons / Chrome Web Store
+- [ ] `npm run extension:package` → subir `dist/myfin-chromium.zip`.
+- [ ] Listagem de `store-assets/edge/listing.md`.
+
+### Firefox Add-ons (AMO)
+- [ ] `npm run extension:package` → subir `dist/myfin-firefox.zip`.
+- [ ] Listagem de `store-assets/firefox/listing.md`.
 
 ## Offline
 

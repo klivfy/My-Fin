@@ -1,7 +1,8 @@
-import { PrismaClient, type CategoryType, type Prisma } from "@prisma/client";
+import { PrismaClient, type CategoryNature, type CategoryType, type Prisma } from "@prisma/client";
 import Decimal from "decimal.js";
 import { MockAdapter } from "../src/lib/financial-engine/mock-adapter";
 import { hashTransactions, partitionByExistingHash } from "../src/lib/financial-engine/reconciliation";
+import { matchCategory } from "../src/lib/financial-engine/categorization";
 import { createInstallmentPurchase } from "../src/actions/credit-cards";
 
 const prisma = new PrismaClient();
@@ -12,26 +13,33 @@ const DEFAULT_CATEGORIES: Array<{
   icon: string;
   color: string;
   budgetLimit?: string;
+  nature?: CategoryNature;
 }> = [
   { name: "Salário", type: "INCOME", icon: "wallet", color: "#0F9D58" },
   { name: "Outras Receitas", type: "INCOME", icon: "trending-up", color: "#34A853" },
-  { name: "Alimentação", type: "EXPENSE", icon: "utensils", color: "#EA4335", budgetLimit: "800.00" },
-  { name: "Transporte", type: "EXPENSE", icon: "car", color: "#FB8C00", budgetLimit: "400.00" },
-  { name: "Moradia", type: "EXPENSE", icon: "home", color: "#8E24AA", budgetLimit: "1200.00" },
-  { name: "Assinaturas", type: "EXPENSE", icon: "repeat", color: "#3949AB", budgetLimit: "250.00" },
-  { name: "Lazer", type: "EXPENSE", icon: "party-popper", color: "#00ACC1", budgetLimit: "300.00" },
-  { name: "Saúde", type: "EXPENSE", icon: "heart-pulse", color: "#D81B60", budgetLimit: "300.00" },
-  { name: "Compras", type: "EXPENSE", icon: "shopping-bag", color: "#6D4C41", budgetLimit: "500.00" },
+  { name: "Alimentação", type: "EXPENSE", icon: "utensils", color: "#EA4335", budgetLimit: "800.00", nature: "NEED" },
+  { name: "Transporte", type: "EXPENSE", icon: "car", color: "#FB8C00", budgetLimit: "400.00", nature: "NEED" },
+  { name: "Moradia", type: "EXPENSE", icon: "home", color: "#8E24AA", budgetLimit: "1200.00", nature: "NEED" },
+  { name: "Assinaturas", type: "EXPENSE", icon: "repeat", color: "#3949AB", budgetLimit: "250.00", nature: "WANT" },
+  { name: "Lazer", type: "EXPENSE", icon: "party-popper", color: "#00ACC1", budgetLimit: "300.00", nature: "WANT" },
+  { name: "Saúde", type: "EXPENSE", icon: "heart-pulse", color: "#D81B60", budgetLimit: "300.00", nature: "NEED" },
+  { name: "Compras", type: "EXPENSE", icon: "shopping-bag", color: "#6D4C41", budgetLimit: "500.00", nature: "WANT" },
 ];
 
-/** Heurística simples de categorização por palavra-chave na descrição normalizada. */
-const CATEGORY_KEYWORDS: Array<{ match: RegExp; category: string }> = [
-  { match: /EMPREGADOR/, category: "Salário" },
-  { match: /NETFLIX|SPOTIFY|SMARTFIT|CLARO NET/, category: "Assinaturas" },
-  { match: /SUPERMERCADO|IFOOD/, category: "Alimentação" },
-  { match: /POSTO IPIRANGA/, category: "Transporte" },
-  { match: /CONDOMINIO|ENERGIA ELETRICA/, category: "Moradia" },
-  { match: /MAGAZINE LUIZA|AMERICANAS/, category: "Compras" },
+/** Regras de categorização do seed: trecho da descrição normalizada → categoria. */
+const SEED_RULES: Array<{ pattern: string; category: string }> = [
+  { pattern: "EMPREGADOR", category: "Salário" },
+  { pattern: "NETFLIX", category: "Assinaturas" },
+  { pattern: "SPOTIFY", category: "Assinaturas" },
+  { pattern: "SMARTFIT", category: "Assinaturas" },
+  { pattern: "CLARO NET", category: "Assinaturas" },
+  { pattern: "SUPERMERCADO", category: "Alimentação" },
+  { pattern: "IFOOD", category: "Alimentação" },
+  { pattern: "POSTO IPIRANGA", category: "Transporte" },
+  { pattern: "CONDOMINIO", category: "Moradia" },
+  { pattern: "ENERGIA ELETRICA", category: "Moradia" },
+  { pattern: "MAGAZINE LUIZA", category: "Compras" },
+  { pattern: "AMERICANAS", category: "Compras" },
 ];
 
 const INSTALLMENT_MARKERS = ["MAGAZINE LUIZA", "AMERICANAS"];
@@ -49,6 +57,19 @@ async function main() {
       ? await prisma.category.update({ where: { id: existing.id }, data: category })
       : await prisma.category.create({ data: category });
     categories.set(category.name, row.id);
+  }
+
+  console.log("→ Seed: regras de categorização");
+  const rules: Array<{ pattern: string; categoryId: string }> = [];
+  for (const rule of SEED_RULES) {
+    const categoryId = categories.get(rule.category);
+    if (!categoryId) continue;
+    await prisma.categorizationRule.upsert({
+      where: { pattern: rule.pattern },
+      create: { pattern: rule.pattern, categoryId },
+      update: { categoryId },
+    });
+    rules.push({ pattern: rule.pattern, categoryId });
   }
 
   console.log("→ Seed: contas de teste");
@@ -102,19 +123,23 @@ async function main() {
 
     if (toInsert.length > 0) {
       await prisma.transaction.createMany({
-        data: toInsert.map((t) => ({
-          accountId: account.id,
-          categoryId: categorize(t.description, categories),
-          amount: t.amount.toFixed(2),
-          type: t.amount.isNegative() ? "EXPENSE" : "INCOME",
-          description: t.description,
-          originalDescription: t.originalDescription,
-          date: t.date,
-          isPaid: true,
-          isReconciled: true,
-          reconciliationHash: t.reconciliationHash,
-          syncLogId: syncLog.id,
-        })),
+        data: toInsert.map((t) => {
+          const categoryId = matchCategory(t.description, rules);
+          return {
+            accountId: account.id,
+            categoryId,
+            categorizationSource: categoryId ? ("RULE" as const) : null,
+            amount: t.amount.toFixed(2),
+            type: t.amount.isNegative() ? ("EXPENSE" as const) : ("INCOME" as const),
+            description: t.description,
+            originalDescription: t.originalDescription,
+            date: t.date,
+            isPaid: true,
+            isReconciled: true,
+            reconciliationHash: t.reconciliationHash,
+            syncLogId: syncLog.id,
+          };
+        }),
       });
     }
 
@@ -226,15 +251,6 @@ async function seedInstallmentPurchase(input: {
       throw error;
     }
   }
-}
-
-function categorize(normalizedDescription: string, categories: Map<string, string>): string | null {
-  for (const rule of CATEGORY_KEYWORDS) {
-    if (rule.match.test(normalizedDescription)) {
-      return categories.get(rule.category) ?? null;
-    }
-  }
-  return null;
 }
 
 main()

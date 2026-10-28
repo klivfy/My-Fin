@@ -80,6 +80,7 @@ export async function createInstallmentPurchase(input: CreateInstallmentPurchase
         data: {
           accountId: parsed.accountId,
           categoryId: parsed.categoryId ?? null,
+          categorizationSource: parsed.categoryId ? "MANUAL" : null,
           amount: decimalToDb(installmentAmount.negated()),
           type: "EXPENSE",
           description: `${parsed.description} (${i + 1}/${parsed.totalInstallments})`,

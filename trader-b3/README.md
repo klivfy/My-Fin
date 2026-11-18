@@ -19,6 +19,8 @@ b3-relogio -> b3-scanner -> b3-noticias -> b3-plano -> b3-replay -> b3-risco -> 
 | `skills/<nome>/` | uma skill por pasta: `SKILL.md`, script `.py` e cópia de `b3comum.py` |
 | `skills/b3-relogio/referencia_b3.json` | fatos voláteis com fonte e data (grade, feriados, custos, IR, endpoints) |
 | `skills/b3-relogio/config.example.json` | modelo dos limites do perfil |
+| `tools/sync_comum.py` | copia `comum/b3comum.py` para todas as skills (`--check` só confere) |
+| `tests/` | testes offline: invariantes do pacote e aceite das 11 regras do b3-risco |
 
 ## Uso
 
@@ -32,10 +34,20 @@ python3 ~/.claude/skills/b3-relogio/relogio.py status
 
 Os dados ficam em `trader/` na pasta de trabalho e nunca são versionados.
 
+## Desenvolvimento
+
+```bash
+python3 tools/sync_comum.py            # depois de editar comum/b3comum.py
+python3 -m unittest discover -s tests -v
+```
+
+O CI roda os dois em Python 3.10 (versão mínima).
+
 ## Estado
 
-Importado das skills da conta Claude em 18/11/2026, sem mudança de lógica.
-Próximas etapas: script de sincronização do `b3comum.py`, testes `unittest`
-offline, job de CI e empacotamento das skills.
+Importado das skills da conta Claude em 18/11/2026. Testes cobrem o b3-risco
+(cada regra de entrada bloqueia; saída nunca é bloqueada). Próximas etapas:
+testes do b3-plano e do b3-replay, empacotamento das skills e integração com
+o My-Fin.
 
 Material educacional; não é recomendação de investimento.

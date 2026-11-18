@@ -5,22 +5,28 @@ Usa a referencia_b3.json e o config.example.json versionados no b3-relogio, num 
 fixo (quinta 19/11/2026, 11:00 de Brasília)."""
 
 import copy
+import csv
 import datetime as dt
+import io
 import json
 import os
 import sys
+import tempfile
 import unittest
+from contextlib import redirect_stdout, redirect_stderr
+from unittest import mock
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(RAIZ, "skills", "b3-risco"))
 import risco  # noqa: E402
 
-RELOGIO = os.path.join(RAIZ, "skills", "b3-relogio")
-with open(os.path.join(RELOGIO, "referencia_b3.json"), encoding="utf-8") as fh:
+FIXTURES = os.path.join(RAIZ, "tests", "fixtures")
+REF_PATH = os.path.join(FIXTURES, "referencia_b3.json")
+with open(REF_PATH, encoding="utf-8") as fh:
     REF = json.load(fh)
-with open(os.path.join(RELOGIO, "config.example.json"), encoding="utf-8") as fh:
+with open(os.path.join(FIXTURES, "config_teste.json"), encoding="utf-8") as fh:
     CFG_BASE = json.load(fh)
-CFG_BASE["fases"]["1"]["inicio"] = "2026-11-01"
+CFG_BASE["fases"]["1"]["inicio"] = "2026-10-01"
 
 HOJE = "2026-11-19"
 AGORA = dt.datetime(2026, 11, 19, 11, 0)
@@ -31,6 +37,14 @@ PLANO_BASE = {"ticker": "BBAS3", "classe": "acao", "estilo": "swing", "lado": "c
 def op(data, resultado, modo="simulado", estilo="swing"):
     return {"data": data, "data_entrada": data, "ativo": "BBAS3", "modo": modo, "estilo": estilo,
             "resultado_rs": resultado}
+
+
+def posicao(qtd=10, preco=20.00, stop=19.80, modo="simulado", data_entrada="2026-11-17"):
+    p = {"ticker": "ITUB4F", "quantidade": qtd, "preco_medio": preco, "stop": stop, "alvo": preco * 1.03,
+         "estilo": "swing", "classe": "acao", "data_entrada": data_entrada}
+    if modo is not None:
+        p["modo"] = modo
+    return p
 
 
 class Base(unittest.TestCase):
@@ -121,6 +135,39 @@ class TestRegrasDeEntrada(Base):
         self.diario = [op("2026-11-03", -50.0)]
         self.assertBloqueadoPor(7)
 
+    def test_regra_7_pausa_atravessa_a_virada_do_mes(self):
+        # Limite batido em 28/10: pausa de 7 dias até 04/11, mesmo com o mês novo zerado.
+        self.diario = [op("2026-10-28", -50.0)]
+        self.agora = dt.datetime(2026, 11, 3, 11, 0)
+        self.plano["data"] = "2026-11-03"
+        res = self.assertBloqueadoPor(7)
+        self.assertTrue(any("2026-11-04" in m for m in res["motivos"]), res["motivos"])
+
+    def test_regra_7_pausa_termina_no_prazo(self):
+        self.diario = [op("2026-10-28", -50.0)]
+        self.agora = dt.datetime(2026, 11, 5, 11, 0)
+        self.plano["data"] = "2026-11-05"
+        self.assertNotIn("7", self.regras(self.checar()))
+
+    def test_regra_7_entrada_levaria_o_mes_alem_do_limite(self):
+        self.diario = [op("2026-11-10", -48.5)]
+        res = self.assertBloqueadoPor(7)
+        self.assertTrue(any("levaria" in m for m in res["motivos"]), res["motivos"])
+
+    def test_regra_5_soma_o_risco_das_posicoes_abertas(self):
+        # 10 ações a 20,00 com stop 18,70: cerca de R$ 13 em risco; mais esta entrada passa de R$ 15.
+        self.port = {"posicoes": [posicao(stop=18.70)]}
+        res = self.assertBloqueadoPor(5)
+        self.assertGreater(res["contexto"]["risco_aberto"], 12)
+
+    def test_posicao_sem_modo_conta_no_simulado(self):
+        self.port = {"posicoes": [posicao(stop=18.70, modo=None)]}
+        self.assertBloqueadoPor(5)
+
+    def test_posicao_de_outro_modo_nao_conta(self):
+        self.port = {"posicoes": [posicao(stop=18.70, modo="real")]}
+        self.assertNotIn("5", self.regras(self.checar()))
+
     def test_regra_8_plano_de_outro_dia(self):
         self.plano["data"] = "2026-11-18"
         self.assertBloqueadoPor(8)
@@ -137,6 +184,26 @@ class TestRegrasDeEntrada(Base):
     def test_regra_9_minicontrato(self):
         self.plano["ticker"] = "WINZ26"
         self.assertBloqueadoPor(9)
+
+    def test_regra_9_termo(self):
+        self.plano["ticker"] = "PETR4T"
+        self.assertBloqueadoPor(9)
+
+    def test_sem_caixa_nao_alavanca(self):
+        # Carteira com quase todo o capital investido: a quantidade nunca passa do caixa livre.
+        # Sem caixa acima do mínimo, a entrada é recusada (regra 11) em vez de alavancar.
+        self.port = {"posicoes": [posicao(qtd=23, preco=20.00, stop=19.95)]}
+        res = self.checar()
+        self.assertEqual(res["veredito"], "BLOQUEADO", res["motivos"])
+        self.assertTrue(self.regras(res) & {"9", "11"}, res["motivos"])
+
+    def test_financeiro_aprovado_cabe_no_caixa_livre(self):
+        self.port = {"posicoes": [posicao(qtd=15, preco=20.00, stop=19.95)]}
+        res = self.checar()
+        caixa = res["contexto"]["caixa"]
+        minimo = CFG_BASE["capital"] * CFG_BASE["caixa_min_pct"] / 100
+        self.assertIsNotNone(res["ordem"], res["motivos"])
+        self.assertLessEqual(res["ordem"]["financeiro"], float(caixa) - minimo)
 
     def test_regra_9_venda_descoberta(self):
         self.plano["lado"] = "venda"
@@ -198,9 +265,8 @@ class TestSaida(Base):
     def test_saida_nunca_bloqueada_no_feriado(self):
         self.assertEqual(self.sair(agora=dt.datetime(2026, 11, 20, 11, 0))["veredito"], "APROVADO")
 
-    def test_saida_nunca_bloqueada_com_limites_estourados(self):
-        # Perda do dia, entradas e pausa mensal não entram na saída.
-        self.diario = [op(HOJE, -14.0), op(HOJE, -1.0), op("2026-11-16", -50.0)]
+    def test_saida_sem_modo_na_posicao(self):
+        self.port["posicoes"][0].pop("modo")
         self.assertEqual(self.sair()["veredito"], "APROVADO")
 
     def test_vender_sem_posicao_e_venda_descoberta(self):
@@ -213,6 +279,68 @@ class TestSaida(Base):
         res = self.sair(qtd=11)
         self.assertEqual(res["veredito"], "BLOQUEADO")
         self.assertIn("9", self.regras(res))
+
+
+
+class TestLinhaDeComando(unittest.TestCase):
+    """Roda risco.py como o usuário roda, lendo config, diário e carteira do disco."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.pasta = os.path.join(self.tmp.name, "trader")
+        os.makedirs(self.pasta)
+        cfg = copy.deepcopy(CFG_BASE)
+        with open(os.path.join(self.pasta, "config.json"), "w", encoding="utf-8") as fh:
+            json.dump(cfg, fh)
+        with open(os.path.join(self.pasta, "portfolio.json"), "w", encoding="utf-8") as fh:
+            json.dump({"posicoes": [dict(posicao(), ticker="BBAS3F")]}, fh)
+        with open(os.path.join(self.pasta, "plan.json"), "w", encoding="utf-8") as fh:
+            json.dump(PLANO_BASE, fh)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def diario(self, linhas):
+        campos = ["data", "data_entrada", "ativo", "modo", "estilo", "quantidade", "resultado_rs"]
+        with open(os.path.join(self.pasta, "diario.csv"), "w", encoding="utf-8", newline="") as fh:
+            w = csv.DictWriter(fh, fieldnames=campos)
+            w.writeheader()
+            for x in linhas:
+                w.writerow({k: x.get(k, 1 if k == "quantidade" else "") for k in campos})
+
+    def rodar(self, *args, permitir_agora=True, agora="2026-11-19 11:00"):
+        argv = list(args) + ["--config", os.path.join(self.pasta, "config.json"), "--ref", REF_PATH,
+                             "--agora", agora]
+        env = {"TRADER_B3_PERMITIR_AGORA": "1"} if permitir_agora else {}
+        out, err = io.StringIO(), io.StringIO()
+        with mock.patch.dict(os.environ, env, clear=False), redirect_stdout(out), redirect_stderr(err):
+            if not permitir_agora:
+                os.environ.pop("TRADER_B3_PERMITIR_AGORA", None)
+            code = risco.main(argv)
+        return code, out.getvalue() + err.getvalue()
+
+    def test_entrada_bloqueada_com_limites_estourados_no_diario(self):
+        self.diario([op(HOJE, -14.0), op(HOJE, -1.0), op("2026-11-16", -50.0)])
+        code, txt = self.rodar("checar", "--plano", os.path.join(self.pasta, "plan.json"))
+        self.assertEqual(code, 2, txt)
+        self.assertIn("BLOQUEADO", txt)
+
+    def test_saida_nunca_bloqueada_com_limites_estourados_no_diario(self):
+        # Mesmo diário do teste acima: a entrada bloqueia, a saída passa.
+        self.diario([op(HOJE, -14.0), op(HOJE, -1.0), op("2026-11-16", -50.0)])
+        code, txt = self.rodar("saida", "--ticker", "BBAS3", "--motivo", "stop")
+        self.assertEqual(code, 0, txt)
+        self.assertIn("APROVADO", txt)
+
+    def test_saida_nunca_bloqueada_fora_do_pregao(self):
+        self.diario([op("2026-11-16", -50.0)])
+        code, txt = self.rodar("saida", "--ticker", "BBAS3", "--motivo", "stop", agora="2026-11-20 21:00")
+        self.assertEqual(code, 0, txt)
+
+    def test_agora_exige_variavel_de_ambiente(self):
+        code, txt = self.rodar("status", permitir_agora=False)
+        self.assertEqual(code, 1)
+        self.assertIn("TRADER_B3_PERMITIR_AGORA", txt)
 
 
 if __name__ == "__main__":

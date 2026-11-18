@@ -27,7 +27,9 @@ python3 "${CLAUDE_SKILL_DIR}/relogio.py" diagnostico --ticker PETR4 --write
 ```
 
 `--agora "2026-11-10 10:20"` fixa o relógio (horário de Brasília) para testes e
-estudo de um pregão passado.
+estudo de um pregão passado. Só vale com `TRADER_B3_PERMITIR_AGORA=1` no ambiente,
+em todas as skills; sem ela o relógio é sempre o real, para ninguém forjar o
+horário e passar pelas regras de janela e de mercado.
 
 ## O que lê e escreve
 

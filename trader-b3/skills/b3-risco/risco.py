@@ -69,17 +69,22 @@ def contexto(ref, cfg, modo, hoje, diario, port, com_custos=True):
     h = hoje.isoformat()
     mt = [x for x in diario if x.get("modo") == modo]
     perdas_hoje = sum(-x["resultado_rs"] for x in mt if x.get("data") == h and (x.get("resultado_rs") or 0) < 0)
-    abertas = [p for p in port["posicoes"] if (p.get("modo") or "real") == modo]
+    abertas = [p for p in port["posicoes"] if c.posicao_do_modo(p, modo)]
     risco_aberto = sum((risco_posicao(ref, cfg, p, com_custos) for p in abertas), D(0))
     entradas_hoje = (sum(1 for x in mt if (x.get("data_entrada") or x.get("data")) == h)
                      + sum(1 for p in abertas if p.get("data_entrada") == h))
-    do_mes = sorted((x for x in mt if (x.get("data") or "")[:7] == h[:7] and x.get("resultado_rs") is not None),
-                    key=lambda x: x["data"])
-    acum, atingiu = 0.0, None
-    for x in do_mes:
-        acum += x["resultado_rs"]
-        if atingiu is None and acum <= -float(cfg["perda_max_mes"]):
-            atingiu = x["data"]
+    # Acumulado por mês e a data em que cada mês bateu o limite. A pausa conta a partir da
+    # batida mais recente, mesmo que seja do mês anterior: ela atravessa a virada do mês.
+    fechadas = sorted((x for x in mt if x.get("resultado_rs") is not None and (x.get("data") or "") <= h),
+                      key=lambda x: x["data"])
+    por_mes, bateu = {}, {}
+    for x in fechadas:
+        m = x["data"][:7]
+        por_mes[m] = por_mes.get(m, 0.0) + x["resultado_rs"]
+        if m not in bateu and por_mes[m] <= -float(cfg["perda_max_mes"]):
+            bateu[m] = x["data"]
+    acum = por_mes.get(h[:7], 0.0)
+    atingiu = max(bateu.values()) if bateu else None
     pausa_ate = None
     if atingiu:
         pausa_ate = (c.data(atingiu) + dt.timedelta(days=int(cfg.get("pausa_dias_apos_mes", 7)))).isoformat()
@@ -314,7 +319,7 @@ def montar_ordem(plano, dim, modo, hoje, classe, estilo, reais):
 
 def checar_saida(ref, ticker, qtd, preco, motivo, agora, port, modo):
     base = c.ticker_base(ticker)
-    pos = [p for p in port["posicoes"] if c.ticker_base(p["ticker"]) == base and (p.get("modo") or "real") == modo]
+    pos = [p for p in port["posicoes"] if c.ticker_base(p["ticker"]) == base and c.posicao_do_modo(p, modo)]
     tem = sum(int(p["quantidade"]) for p in pos)
     q = tem if qtd is None else int(qtd)
     if tem == 0 or q > tem or q <= 0:
@@ -464,7 +469,7 @@ def cmd_status(a):
               "Fase: config diz %d; o diário comprova %d.%s" % (nums["declarada"], f,
                                                                  (" " + "; ".join(mot) + ".") if mot else "")]
     for p in port["posicoes"]:
-        if (p.get("modo") or "real") == modo:
+        if c.posicao_do_modo(p, modo):
             linhas.append("  aberta: %s %d a %s, stop %s, risco %s" % (
                 p["ticker"], int(p["quantidade"]), c.rs(p["preco_medio"]), c.rs(p.get("stop") or 0),
                 c.rs(risco_posicao(ref, cfg, p, not sim_avisar))))

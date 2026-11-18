@@ -139,11 +139,19 @@ def offset(ref):
     return dt.timedelta(hours=float(ref["fuso"]["utc_offset_horas"]))
 
 
+# --agora fixa o relógio. Só vale com esta variável de ambiente igual a "1" (testes e estudo
+# deliberado), para nenhum agente forjar o horário e passar pelas regras de janela e mercado.
+ENV_AGORA = "TRADER_B3_PERMITIR_AGORA"
+
+
 def agora_local(ref, texto=None):
     """Agora em Brasília (ingênuo). texto: 'AAAA-MM-DD HH:MM' ou 'HH:MM' (hoje)."""
     real = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None, microsecond=0) + offset(ref)
     if not texto:
         return real
+    if os.environ.get(ENV_AGORA) != "1":
+        raise B3Erro("--agora só vale com %s=1 no ambiente (testes e estudo); sem ela o relógio é o real"
+                     % ENV_AGORA)
     t = texto.strip()
     if re.match(r"^\d{1,2}:\d{2}$", t):
         t = "%s %s" % (real.date().isoformat(), t.zfill(5))
@@ -634,6 +642,12 @@ def fase_verificada(cfg, diario, hoje):
                 efetiva = 3
     nums["efetiva"] = efetiva
     return efetiva, motivos, nums
+
+
+def posicao_do_modo(p, modo):
+    """Posição sem 'modo' conta nos dois modos: no risco é o lado conservador, e na saída
+    evita que uma posição real ou simulada fique sem como ser vendida."""
+    return p.get("modo") in (None, "", modo)
 
 
 def ler_portfolio(caminho):

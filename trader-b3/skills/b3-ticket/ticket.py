@@ -262,7 +262,7 @@ def entrar(port, o, q, preco, hoje):
 def sair(ref, cfg, p, port, o, q, preco, hoje, emocao, nota):
     """Baixa FIFO das posições do ticker e modo; cada lote fechado vira uma linha do diário com custos reais."""
     resto, linhas = q, []
-    for pos in [x for x in port["posicoes"] if x["ticker"] == o["ticker"] and (x.get("modo") or "real") == o["modo"]]:
+    for pos in [x for x in port["posicoes"] if x["ticker"] == o["ticker"] and c.posicao_do_modo(x, o["modo"])]:
         if resto == 0:
             break
         k = min(resto, int(pos["quantidade"]))

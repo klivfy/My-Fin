@@ -77,6 +77,12 @@ enum SyncProvider {
   OFX_IMPORT
   INTER_API
   MOCK
+  /// Planilha de negociação exportada da Área do Investidor da B3.
+  B3_XLSX
+  /// Nota de corretagem em PDF (padrão SINACOR).
+  BROKERAGE_NOTE_PDF
+  /// Agregador regulado do Open Finance (etapa 4, ainda sem uso).
+  PLUGGY
 }
 
 enum SyncStatus {
@@ -371,7 +377,9 @@ model SyncLog {
 
   errorDetails String? @db.Text
 
-  transactions Transaction[]
+  transactions     Transaction[]
+  investmentTrades InvestmentTrade[]
+  brokerageNotes   BrokerageNote[]
 
   createdAt  DateTime  @default(now())
   finishedAt DateTime?
@@ -440,4 +448,108 @@ model TradeLimits {
   updatedAt DateTime @updatedAt
 
   @@map("trade_limits")
+}
+
+// ----------------------------------------------------------------------------
+// Investimentos — negócios EXECUTADOS na bolsa, vindos de arquivos oficiais
+// (planilha da B3, nota de corretagem) e, no futuro, do Open Finance.
+// Diferente de TradeEntry (o diário do trader-b3, com plano e emoção): aqui
+// fica só o que a B3 e a corretora registraram. Nenhum dado pessoal
+// (CPF, conta, código de cliente) é gravado; o arquivo original é descartado.
+// ----------------------------------------------------------------------------
+
+enum TradeSide {
+  BUY
+  SELL
+}
+
+model InvestmentTrade {
+  id String @id @default(uuid())
+
+  tradeDate DateTime  @db.Date
+  side      TradeSide
+  /// Código de negociação sem o sufixo F do fracionário (ABCD3F → ABCD3).
+  /// Na nota sem código, guarda a especificação do título até a B3 conciliar.
+  ticker    String
+  market    String?
+  broker    String?
+
+  quantity    Int
+  price       Decimal @db.Decimal(14, 4)
+  grossAmount Decimal @db.Decimal(14, 2)
+  /// Custos rateados da nota de corretagem (zero até a nota ser importada).
+  fees        Decimal @default(0) @db.Decimal(12, 2)
+
+  source   SyncProvider
+  /// SHA-256 de data + lado + ativo + quantidade + preço + ocorrência no
+  /// arquivo: reimportar o mesmo arquivo não duplica.
+  matchKey String       @unique
+
+  brokerageNoteId String?
+  brokerageNote   BrokerageNote? @relation(fields: [brokerageNoteId], references: [id], onDelete: SetNull)
+  syncLogId       String?
+  syncLog         SyncLog?       @relation(fields: [syncLogId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tradeDate])
+  @@index([ticker, tradeDate])
+  @@map("investment_trades")
+}
+
+model BrokerageNote {
+  id String @id @default(uuid())
+
+  broker     String
+  noteNumber String
+  tradeDate  DateTime @db.Date
+
+  settlementFee   Decimal   @default(0) @db.Decimal(12, 2)
+  registrationFee Decimal   @default(0) @db.Decimal(12, 2)
+  emoluments      Decimal   @default(0) @db.Decimal(12, 2)
+  brokerage       Decimal   @default(0) @db.Decimal(12, 2)
+  taxes           Decimal   @default(0) @db.Decimal(12, 2)
+  otherFees       Decimal   @default(0) @db.Decimal(12, 2)
+  /// Soma dos custos acima (o que é rateado entre os negócios).
+  totalFees       Decimal   @default(0) @db.Decimal(12, 2)
+  /// IRRF retido na fonte ("dedo-duro"): crédito no DARF, não custo.
+  irrf            Decimal   @default(0) @db.Decimal(12, 2)
+  /// Líquido da nota, assinado: positivo = crédito ao cliente.
+  netAmount       Decimal   @db.Decimal(14, 2)
+  settlementDate  DateTime? @db.Date
+
+  trades    InvestmentTrade[]
+  syncLogId String?
+  syncLog   SyncLog?          @relation(fields: [syncLogId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@unique([broker, noteNumber])
+  @@index([tradeDate])
+  @@map("brokerage_notes")
+}
+
+enum ConnectionStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+  ERROR
+}
+
+/// Conexão com agregador do Open Finance (etapa 4). O identificador da
+/// conexão no provedor é guardado só cifrado (AES-256-GCM, chave na Netlify).
+model InvestmentConnection {
+  id String @id @default(uuid())
+
+  provider     SyncProvider
+  label        String
+  encryptedRef String           @db.Text
+  status       ConnectionStatus @default(ACTIVE)
+  lastSyncAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("investment_connections")
 }

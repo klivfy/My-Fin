@@ -65,3 +65,36 @@ jobs:
 
       - name: Testes (unittest, offline)
         run: python -m unittest discover -s tests -v
+
+  secrets:
+    name: Varredura de segredos (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # O repositório é público: nenhum commit novo pode trazer chave, token
+      # ou senha. Varre só os commits desta mudança (PR: desde a base; push
+      # na main: desde o commit anterior), com o achado mascarado no log.
+      - name: Intervalo de commits
+        id: range
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ -n "$BASE_REF" ]; then
+            echo "range=origin/$BASE_REF..HEAD" >> "$GITHUB_OUTPUT"
+          elif [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
+            echo "range=$BEFORE..HEAD" >> "$GITHUB_OUTPUT"
+          else
+            echo "range=HEAD~1..HEAD" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: gitleaks
+        run: >-
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/repo" -w /repo
+          zricethezav/gitleaks:v8.21.2
+          git . --redact --no-banner --verbose
+          --log-opts="--no-merges ${{ steps.range.outputs.range }}"

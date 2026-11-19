@@ -5,10 +5,10 @@ import { PrismaClient } from "@prisma/client";
  *
  * Em desenvolvimento, o Next.js recarrega módulos a cada mudança (HMR); para
  * evitar esgotar o pool de conexões do Postgres, guardamos a instância em
- * `globalThis` e a reaproveitamos entre reloads. Em produção (Netlify
- * Functions), cada cold start cria uma instância nova — por isso
- * `DATABASE_URL` deve sempre apontar para um endpoint com connection
- * pooling (veja .env.example).
+ * `globalThis` e a reaproveitamos entre reloads. Em produção (funções
+ * da Vercel), cada instância nova da função cria um client novo; por isso
+ * `DATABASE_URL` aponta para o pooler do Supabase em modo transaction
+ * (porta 6543, `pgbouncer=true`, `connection_limit=1`; veja .env.example).
  */
 
 declare global {

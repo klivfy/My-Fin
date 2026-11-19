@@ -2,16 +2,26 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 /**
- * Gate opcional para deploy público.
+ * Gate de acesso.
  *
- * Sem `APP_ACCESS_TOKEN` o app permanece aberto (uso local / rede privada).
- * Com o token configurado, exige cookie `myfin_access` igual ao segredo —
- * suficiente para um PFM pessoal sem OAuth completo. Não exponha o site
- * na internet sem definir esse token.
+ * Local, sem `APP_ACCESS_TOKEN`, o app fica aberto. Com o token configurado,
+ * exige cookie `myfin_access` (ou Bearer) igual ao segredo: suficiente para
+ * um PFM pessoal sem OAuth completo.
+ *
+ * Na Vercel (`VERCEL=1`) toda URL de deploy é pública, então falta de token
+ * é erro de configuração: responde 503 em vez de abrir os dados financeiros.
  */
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const requiredToken = process.env.APP_ACCESS_TOKEN;
-  if (!requiredToken) return NextResponse.next();
+  if (!requiredToken) {
+    if (process.env.VERCEL) {
+      return new NextResponse("APP_ACCESS_TOKEN não configurado neste ambiente da Vercel.", {
+        status: 503,
+        headers: { "content-type": "text/plain; charset=utf-8" },
+      });
+    }
+    return NextResponse.next();
+  }
 
   const cookie = request.cookies.get("myfin_access")?.value;
   const bearer = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");

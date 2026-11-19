@@ -45,6 +45,63 @@ jobs:
 
       - run: npm run build
 
+  migrations:
+    name: Migrações no Postgres (como no Supabase)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        # Mesma versão principal dos projetos novos do Supabase.
+        image: postgres:17
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Banco descartável do próprio job; nada aqui é segredo.
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      DIRECT_URL: postgresql://ci:ci@localhost:5432/ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # O mesmo comando que o deploy de produção roda na Vercel.
+      - name: Aplicar migrações do zero
+        run: npx prisma migrate deploy
+
+      # Falha se alguém mudou o schema.prisma sem gerar a migração.
+      - name: Schema igual às migrações
+        run: >-
+          npx prisma migrate diff
+          --from-url "$DIRECT_URL"
+          --to-schema-datamodel prisma/schema.prisma
+          --exit-code
+
+      # Sem RLS, a Data API do Supabase expõe a tabela para a chave anon.
+      - name: Toda tabela de public com RLS
+        env:
+          PGPASSWORD: ci
+        run: |
+          sem_rls=$(psql -h localhost -U ci -d ci -tAc \
+            "SELECT string_agg(tablename, ', ') FROM pg_tables WHERE schemaname = 'public' AND NOT rowsecurity")
+          if [ -n "$sem_rls" ]; then
+            echo "::error::Tabelas sem RLS: $sem_rls. Inclua ALTER TABLE ... ENABLE ROW LEVEL SECURITY na migração."
+            exit 1
+          fi
+
   trader-b3:
     name: trader-b3 (Python, testes offline)
     runs-on: ubuntu-latest

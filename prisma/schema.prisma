@@ -538,7 +538,7 @@ enum ConnectionStatus {
 }
 
 /// Conexão com agregador do Open Finance (etapa 4). O identificador da
-/// conexão no provedor é guardado só cifrado (AES-256-GCM, chave na Netlify).
+/// conexão no provedor é guardado só cifrado (AES-256-GCM, chave na Vercel).
 model InvestmentConnection {
   id String @id @default(uuid())
 

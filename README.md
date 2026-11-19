@@ -12,11 +12,11 @@ monetária exata (`Decimal`, nunca `Float`/`Number`).
 | Framework    | Next.js 16 (App Router, Server Actions, TypeScript `strict`)   |
 | UI           | Tailwind CSS v4 + shadcn/ui (Material Design 3) + Lucide Icons; regras em `DESIGN.md` |
 | Gráficos     | Recharts                                                       |
-| Banco        | PostgreSQL (compatível com Supabase / Neon, com pooling)       |
+| Banco        | PostgreSQL no Supabase (pooler Supavisor), Postgres local em dev |
 | ORM          | Prisma 6 (`prisma-client-js`)                                  |
 | Dinheiro     | `decimal.js` + `@db.Decimal(12,2)` — nunca `Float`/`Number`    |
 | Validação    | Zod (contratos de entrada/saída das Server Actions)            |
-| Deploy       | Netlify (`@netlify/plugin-nextjs`)                             |
+| Deploy       | Vercel (Node 22, região `gru1`), migrações no build de produção |
 
 ## Rodando localmente
 
@@ -135,14 +135,52 @@ repassa ao navegador a mensagem de um erro lançado numa Server Action.
 
 ## Segurança
 
-Em uso local o app fica aberto. Em deploy público (Netlify), defina
-`APP_ACCESS_TOKEN` nas variáveis de ambiente — o middleware passa a exigir
-login com esse token antes de qualquer rota (exceto `/login`).
+Em uso local o app fica aberto. Na Vercel toda URL de deploy é pública, então
+`APP_ACCESS_TOKEN` é obrigatório: o proxy (`src/proxy.ts`) exige login com
+esse token antes de qualquer rota (exceto `/login`) e, se a variável faltar,
+responde 503 em vez de abrir os dados.
 
-## Deploy (Netlify)
+No Supabase, toda tabela de `public` tem RLS ligado e nenhuma policy: a Data
+API (chave `anon`) não lê nem grava nada. O app acessa o banco só pelo Prisma,
+como dono das tabelas, e não é afetado. Toda migração que criar tabela precisa
+de `ALTER TABLE ... ENABLE ROW LEVEL SECURITY`; o CI confere.
 
-`netlify.toml` já configura o build (`prisma generate && next build`) e o
-plugin oficial. Configure `DATABASE_URL` (endpoint com connection pooling,
-ex. Supabase porta 6543 ou Neon `-pooler`) e `DIRECT_URL` (conexão direta,
-usada só pelo `prisma migrate`) nas variáveis de ambiente do site. Para a
-categorização com IA, defina também `ANTHROPIC_API_KEY`.
+## Deploy (Vercel + Supabase)
+
+O que está no repositório:
+
+- `vercel.json`: framework Next.js, `npm ci`, região `gru1` (São Paulo) e o
+  build `npm run vercel-build`.
+- `scripts/vercel-build.mjs`: em produção roda `prisma migrate deploy` e depois
+  `next build`. Se a migração falhar, o deploy falha e a versão anterior fica no
+  ar. Previews só fazem o build e nunca alteram o banco.
+- `package.json` fixa Node `22.x` (o leitor de PDF da Carteira exige Node 22).
+- CI: o job "Migrações no Postgres" aplica todas as migrações num Postgres 17
+  vazio, confere que o `schema.prisma` bate com elas e que toda tabela tem RLS.
+
+Configuração inicial (uma vez, na sua conta):
+
+1. Supabase: use o projeto que já atende o app (ou crie um em `sa-east-1`,
+   São Paulo, perto da função na Vercel; se o seu estiver em outra região,
+   troque `regions` no `vercel.json` para a região mais próxima). Em Project Settings > Data API, desligue a Data API se não for
+   usá-la (o RLS já fecha o acesso, isto é uma segunda camada).
+2. Supabase > Connect: copie a URL do pooler em modo transaction (porta 6543)
+   para `DATABASE_URL`, acrescentando `?pgbouncer=true&connection_limit=1`, e a
+   do modo session (porta 5432) para `DIRECT_URL`. Detalhes em `.env.example`.
+3. Vercel: importe o repositório (Add New > Project). O `vercel.json` já define
+   build e região; confira em Settings > Build que o Node é 22.x.
+4. Vercel > Settings > Environment Variables, em Production: `DATABASE_URL`,
+   `DIRECT_URL`, `APP_ACCESS_TOKEN`, `ENCRYPTION_KEY` e, quando usar,
+   `ANTHROPIC_API_KEY`, `PLUGGY_CLIENT_ID`, `PLUGGY_CLIENT_SECRET`. Marque as
+   secretas como Sensitive. Para Preview, use um banco separado (outro projeto
+   ou branch do Supabase) ou deixe as variáveis de banco vazias.
+5. Primeiro deploy: o build de produção aplica as migrações no banco novo.
+   Para popular dados de exemplo, rode `npm run db:seed` localmente com
+   `DATABASE_URL` apontando para o Supabase (só em banco de teste).
+
+Banco que já existia antes deste fluxo: confira com `npx prisma migrate status`
+(com `DIRECT_URL` apontando para ele). Se as tabelas foram criadas sem
+`migrate deploy` (por exemplo com `db push`), o primeiro deploy falha com
+P3005. Marque como aplicadas as migrações que o banco já tem, uma a uma, com
+`npx prisma migrate resolve --applied <pasta da migração>`, e deixe o deploy
+aplicar só as que faltam.

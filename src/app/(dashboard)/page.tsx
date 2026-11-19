@@ -1,40 +1,44 @@
 import { Wallet } from "lucide-react";
 import { resolvePeriodRange } from "@/lib/period";
 import { getDashboardData } from "@/lib/queries/dashboard";
+import { getTradingHomeSummary } from "@/lib/queries/trading";
 import { KpiCards } from "@/components/dashboard/kpi-cards";
 import { CashFlowChart } from "@/components/dashboard/cash-flow-chart";
-import { CategoryDonut } from "@/components/dashboard/category-donut";
+import { CategoryBars } from "@/components/dashboard/category-bars";
 import { EmptyState } from "@/components/dashboard/empty-state";
+import { TradingHomeSummaryCard } from "@/components/trading/trading-home-summary";
 
-export default async function DashboardPage({
+export default async function OverviewPage({
   searchParams,
 }: {
   searchParams: Promise<{ period?: string }>;
 }) {
   const { period } = await searchParams;
   const range = resolvePeriodRange(period);
-  const data = await getDashboardData(range);
-
-  if (!data.hasAnyTransaction) {
-    return (
-      <EmptyState
-        icon={Wallet}
-        title="Nenhuma transação ainda"
-        description="Importe um extrato .ofx na tela de Extrato ou adicione uma transação manual pelo botão “Nova Transação”."
-      />
-    );
-  }
+  const [data, trading] = await Promise.all([getDashboardData(range), getTradingHomeSummary()]);
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-on-surface">Dashboard</h1>
+        <h1 className="text-xl font-semibold tracking-tight text-on-surface">Visão geral</h1>
         <p className="text-sm text-on-surface-variant">{range.label}</p>
       </div>
 
-      <KpiCards data={data} />
-      <CashFlowChart data={data.dailyBalanceSeries} />
-      <CategoryDonut data={data.categoryBreakdown} />
+      {data.hasAnyTransaction ? (
+        <>
+          <KpiCards data={data} />
+          <CashFlowChart data={data.dailyBalanceSeries} />
+          <CategoryBars data={data.categoryBreakdown} />
+        </>
+      ) : (
+        <EmptyState
+          icon={Wallet}
+          title="Nenhuma transação ainda"
+          description="Importe um extrato .ofx na tela de Extrato ou adicione uma transação manual pelo botão “Nova transação”."
+        />
+      )}
+
+      {trading && <TradingHomeSummaryCard summary={trading} />}
     </div>
   );
 }

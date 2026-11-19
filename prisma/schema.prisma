@@ -379,3 +379,65 @@ model SyncLog {
   @@index([provider, status])
   @@map("sync_logs")
 }
+
+// ----------------------------------------------------------------------------
+// Trading (trader-b3) — espelho SÓ DE LEITURA do diário das skills Python.
+// A fonte da verdade é `trader/diario.csv`, escrito pelo b3-diario. O app
+// importa o CSV para exibir; nunca grava de volta, nunca envia ordens e não
+// decide entradas: quem bloqueia é o b3-risco. Saídas nunca são bloqueadas.
+// ----------------------------------------------------------------------------
+
+enum TradeMode {
+  REAL
+  SIMULADO
+}
+
+model TradeEntry {
+  id String @id @default(uuid())
+
+  /// Data da saída (fechamento) ou da linha, como no diário.
+  date       DateTime  @db.Date
+  entryDate  DateTime? @db.Date
+  ticker     String
+  assetClass String?
+  style      String?
+  setup      String?
+
+  entryPrice  Decimal? @db.Decimal(14, 4)
+  stopPrice   Decimal? @db.Decimal(14, 4)
+  targetPrice Decimal? @db.Decimal(14, 4)
+  exitPrice   Decimal? @db.Decimal(14, 4)
+  quantity    Int      @default(0)
+
+  costs     Decimal? @db.Decimal(12, 2)
+  resultBrl Decimal? @db.Decimal(12, 2)
+  resultR   Decimal? @db.Decimal(10, 3)
+
+  exitReason String?
+  emotion    String?
+  note       String?   @db.Text
+  mode       TradeMode @default(REAL)
+
+  /// SHA-256 da linha normalizada: reimportar o mesmo CSV não duplica.
+  importHash String @unique
+
+  createdAt DateTime @default(now())
+
+  @@index([mode, date])
+  @@map("trade_entries")
+}
+
+/// Limites do perfil de risco, digitados pelo usuário (nunca versionados).
+/// Linha única (id = 1). Campos nulos: limite não configurado.
+model TradeLimits {
+  id Int @id @default(1)
+
+  maxLossDay          Decimal? @db.Decimal(12, 2)
+  maxLossMonth        Decimal? @db.Decimal(12, 2)
+  pauseDaysAfterMonth Int?
+  maxTradesDay        Int?
+
+  updatedAt DateTime @updatedAt
+
+  @@map("trade_limits")
+}

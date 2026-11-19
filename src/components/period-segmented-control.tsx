@@ -19,18 +19,18 @@ export function PeriodSegmentedControl() {
 
   return (
     <div
-      role="tablist"
+      role="group"
       aria-label="Período"
-      className="inline-flex items-center gap-0.5 rounded-full bg-surface-container-high p-1"
+      className="inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full bg-surface-container-high p-1"
     >
       {PERIOD_OPTIONS.map((option) => (
         <button
           key={option.value}
-          role="tab"
-          aria-selected={current === option.value}
+          type="button"
+          aria-pressed={current === option.value}
           onClick={() => select(option.value)}
           className={cn(
-            "rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors",
+            "min-h-8 shrink-0 rounded-full px-2.5 text-xs font-medium whitespace-nowrap transition-colors duration-150 sm:px-3",
             current === option.value
               ? "bg-surface text-on-surface shadow-sm"
               : "text-on-surface-variant hover:text-on-surface",

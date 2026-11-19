@@ -1,3 +1,6 @@
+"use client";
+
+import { usePathname } from "next/navigation";
 import { PeriodSegmentedControl } from "@/components/period-segmented-control";
 import { PrivacyToggle } from "@/components/dashboard/privacy-toggle";
 import { SyncIndicator, type SyncIndicatorData } from "@/components/dashboard/sync-indicator";
@@ -7,6 +10,11 @@ import {
   type CategoryOption,
 } from "@/components/dashboard/new-transaction-dialog";
 
+/**
+ * Barra superior única para as duas seções. Só mostra o que age sobre a tela
+ * atual: o período filtra finanças e o diário; o painel de risco é sempre de
+ * hoje e do mês corrente; "Nova transação" e a sincronização são de finanças.
+ */
 export function TopAppBar({
   lastSync,
   accounts,
@@ -16,15 +24,19 @@ export function TopAppBar({
   accounts: AccountOption[];
   categories: CategoryOption[];
 }) {
+  const pathname = usePathname();
+  const trading = pathname === "/trading" || pathname.startsWith("/trading/");
+  const showPeriod = pathname !== "/trading/risco";
+
   return (
-    <header className="sticky top-0 z-30 flex flex-wrap items-center gap-3 border-b border-outline-variant bg-surface/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-surface/80 sm:px-6">
-      <div className="flex flex-1 flex-wrap items-center gap-3">
-        <PeriodSegmentedControl />
-        <SyncIndicator lastSync={lastSync} />
+    <header className="sticky top-0 z-30 flex min-h-14 items-center gap-3 border-b border-outline-variant bg-surface px-4 py-2.5 sm:px-6">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        {showPeriod && <PeriodSegmentedControl />}
+        {!trading && <SyncIndicator lastSync={lastSync} />}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2">
         <PrivacyToggle />
-        <NewTransactionDialog accounts={accounts} categories={categories} />
+        {!trading && <NewTransactionDialog accounts={accounts} categories={categories} />}
       </div>
     </header>
   );

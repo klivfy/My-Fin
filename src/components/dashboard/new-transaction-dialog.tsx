@@ -32,7 +32,7 @@ function todayIsoDate(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-/** Extended FAB "+ Nova Transação" — abre um diálogo com lançamento manual imediato. */
+/** Extended FAB "+ Nova transação" — abre um diálogo com lançamento manual imediato. */
 export function NewTransactionDialog({
   accounts,
   categories,
@@ -96,9 +96,9 @@ export function NewTransactionDialog({
     >
       <DialogTrigger
         render={
-          <Button size="lg" className="gap-2 rounded-full shadow-lg">
-            <Plus className="size-4" />
-            Nova Transação
+          <Button size="lg" className="h-10 gap-2 px-3">
+            <Plus className="size-4" aria-hidden />
+            <span className="sr-only sm:not-sr-only">Nova transação</span>
           </Button>
         }
       />

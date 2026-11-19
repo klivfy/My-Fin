@@ -40,4 +40,19 @@ Regras visuais do My-Fin (finanças pessoais e diário de trading na mesma inter
 * O app só **lê** o `diario.csv` importado. Nunca envia ordens nem escreve no diário.
 * O painel de risco **exibe**; quem aprova ou bloqueia é o b3-risco. Todo texto sobre bloqueio diz isso, e diz que saídas nunca são bloqueadas.
 * Real e simulado nunca se misturam na mesma conta.
+* A Carteira (`/investimentos`) mostra o que a B3 e a corretora registraram (planilha de negociação e notas em PDF). Arquivos são lidos e descartados; CPF, conta e código de cliente nunca são gravados. Negócio sem nota aparece como "sem nota", nunca com custo inventado.
 * Nenhum dado real do perfil (capital, limites, corretagem) entra no repositório: os limites do painel ficam só no banco.
+
+## Carteira (`/investimentos`)
+
+Mesmo mundo do resto do app (modo Operar, tema claro, um acento). Regras próprias da tela:
+
+* **Um único layout para vazio e preenchido.** Grade `1fr + 20rem`: dados à esquerda, painel "Fontes de dados" à direita (fixo ao rolar). Trocar a árvore entre estados remonta o painel e apaga o resultado da importação; por isso o estado vazio só troca o conteúdo da coluna esquerda. No celular o painel vai para o fim quando há dados (os números vêm primeiro).
+* **Painel de fontes = lista, não cards.** Uma linha por fonte (planilha B3, notas, Open Finance), separadas por divisor, cada uma com: o que é e onde obter, estado real (última importação, quantas notas, falha) e a ação. Fonte não implementada (Open Finance) diz "Não conectado" e não tem botão.
+* **Resultado da ação fica escrito na linha** (`role="status"`, `aria-live`), com ícone e texto; erro em `text-expense` com ícone, nunca só cor e nunca só em toast que some.
+* **Senha do PDF só quando pedida.** O campo aparece inline depois que o servidor diz que o PDF tem senha: label visível, foco automático, texto dizendo que a senha não é guardada, "Abrir nota" e "Cancelar". Senha errada mantém o formulário com o erro abaixo.
+* **"sem nota" em `text-warning-on-container`** onde faltaria custo; a contagem de negócios sem nota aparece na linha das notas, dizendo a consequência (custo fora do preço médio).
+* **Peso pelo custo** é barra fina `bg-primary` sobre `bg-surface-container-high` com a porcentagem em texto ao lado. É peso pelo custo, não pelo valor de mercado (não há cotação): o rótulo diz isso.
+* **Tabelas:** `tabular-nums`, números à direita, ativo como `th scope="row"`, rolagem horizontal só dentro da moldura. A de negócios usa células `px-3`, pregão como `dd/mm` e origem curta ("B3 · XP") para caber ao lado do painel em 1280px.
+* **Open Finance (Pluggy):** sem credenciais no servidor, a linha diz o que falta e não tem botão. Com credenciais: campo "Id do item no Pluggy" (label visível, mono por ser identificador) até existir conexão; depois, cada conexão com estado em texto (conectada, pede login de novo, falhou) e "Sincronizar agora". O resumo diz o que foi importado, o que já existia e o que ficou de fora (renda fixa, taxas). Origem na tabela: "Pluggy · corretora".
+* **Carregamento:** `loading.tsx` espelha o layout (cabeçalho, faixa de 4 números, linhas de tabela, painel) com `aria-busy`, sem spinner de página.

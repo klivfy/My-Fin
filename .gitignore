@@ -46,3 +46,9 @@ next-env.d.ts
 trader/
 __pycache__/
 *.pyc
+
+# Carteira: planilhas da B3 e notas de corretagem são dados pessoais.
+# Os testes geram os próprios arquivos fictícios em memória.
+*.xlsx
+*.xls
+notas/

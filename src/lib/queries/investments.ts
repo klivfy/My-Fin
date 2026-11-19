@@ -28,28 +28,36 @@ export interface InvestmentTradeRow {
   source: "B3" | "Nota";
 }
 
+export interface SourcesView {
+  b3: { lastImportAt: string | null; lastInserted: number | null; failed: boolean };
+  notes: { count: number; lastTradeDate: string | null; lastImportAt: string | null; failed: boolean };
+  tradesWithoutNote: number;
+  openFinanceConnections: number;
+}
+
 export interface PortfolioView {
   hasAny: boolean;
   positions: PositionRow[];
   recentTrades: InvestmentTradeRow[];
   totals: { openCost: number; realizedSwing: number; realizedDayTrade: number; fees: number; notes: number };
-  /** Negócios ainda sem nota (custos zerados no preço médio). */
-  tradesWithoutNote: number;
-  lastImport: { provider: string; status: string; finishedAt: string | null; error: string | null } | null;
+  sources: SourcesView;
 }
 
 const RECENT = 100;
 
 /** Carteira montada a partir de todos os negócios importados (escala pessoal: poucos milhares de linhas). */
 export async function getPortfolio(): Promise<PortfolioView> {
-  const [trades, notes, lastLog] = await Promise.all([
+  const lastLog = (provider: "B3_XLSX" | "BROKERAGE_NOTE_PDF") =>
+    prisma.syncLog.findFirst({ where: { provider }, orderBy: { createdAt: "desc" } });
+  const [trades, notes, lastNote, b3Log, noteLog, connections] = await Promise.all([
     prisma.investmentTrade.findMany({ orderBy: [{ tradeDate: "asc" }, { createdAt: "asc" }] }),
     prisma.brokerageNote.count(),
-    prisma.syncLog.findFirst({
-      where: { provider: { in: ["B3_XLSX", "BROKERAGE_NOTE_PDF"] } },
-      orderBy: { createdAt: "desc" },
-    }),
+    prisma.brokerageNote.findFirst({ orderBy: { tradeDate: "desc" }, select: { tradeDate: true } }),
+    lastLog("B3_XLSX"),
+    lastLog("BROKERAGE_NOTE_PDF"),
+    prisma.investmentConnection.count({ where: { status: "ACTIVE" } }),
   ]);
+  const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
 
   const positions = computePositions(
     trades.map((t) => ({
@@ -100,14 +108,20 @@ export async function getPortfolio(): Promise<PortfolioView> {
       fees: trades.reduce((s, t) => s.plus(dec(t.fees)), new Decimal(0)).toNumber(),
       notes,
     },
-    tradesWithoutNote: trades.filter((t) => t.brokerageNoteId === null).length,
-    lastImport: lastLog
-      ? {
-          provider: lastLog.provider === "B3_XLSX" ? "planilha da B3" : "nota de corretagem",
-          status: lastLog.status,
-          finishedAt: lastLog.finishedAt?.toISOString() ?? null,
-          error: lastLog.errorDetails,
-        }
-      : null,
+    sources: {
+      b3: {
+        lastImportAt: iso(b3Log?.finishedAt),
+        lastInserted: b3Log?.status === "SUCCESS" ? b3Log.recordsInserted : null,
+        failed: b3Log?.status === "FAILED",
+      },
+      notes: {
+        count: notes,
+        lastTradeDate: lastNote ? lastNote.tradeDate.toISOString().slice(0, 10) : null,
+        lastImportAt: iso(noteLog?.finishedAt),
+        failed: noteLog?.status === "FAILED",
+      },
+      tradesWithoutNote: trades.filter((t) => t.brokerageNoteId === null).length,
+      openFinanceConnections: connections,
+    },
   };
 }

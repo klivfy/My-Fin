@@ -1,4 +1,5 @@
 import { extractText, getDocumentProxy } from "unpdf";
+import { PDF_NEEDS_PASSWORD, PDF_WRONG_PASSWORD } from "./messages";
 
 export class PdfError extends Error {}
 
@@ -13,7 +14,7 @@ export async function extractPdfPages(data: Uint8Array, password?: string): Prom
   } catch (error) {
     const name = (error as { name?: string })?.name;
     if (name === "PasswordException") {
-      throw new PdfError(password ? "Senha do PDF incorreta." : "O PDF tem senha. Informe a senha para importar.");
+      throw new PdfError(password ? PDF_WRONG_PASSWORD : PDF_NEEDS_PASSWORD);
     }
     throw new PdfError("Não consegui abrir o PDF. Confira se é a nota de corretagem original.");
   }

@@ -20,7 +20,7 @@ monetária exata (`Decimal`, nunca `Float`/`Number`).
 
 ## Rodando localmente
 
-Pré-requisitos: Node 20+, PostgreSQL 14+.
+Pré-requisitos: Node 22+, PostgreSQL 14+.
 
 ```bash
 npm install                 # instala dependências (gera o Prisma Client via postinstall)

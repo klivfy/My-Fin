@@ -40,4 +40,5 @@ Regras visuais do My-Fin (finanças pessoais e diário de trading na mesma inter
 * O app só **lê** o `diario.csv` importado. Nunca envia ordens nem escreve no diário.
 * O painel de risco **exibe**; quem aprova ou bloqueia é o b3-risco. Todo texto sobre bloqueio diz isso, e diz que saídas nunca são bloqueadas.
 * Real e simulado nunca se misturam na mesma conta.
+* A Carteira (`/investimentos`) mostra o que a B3 e a corretora registraram (planilha de negociação e notas em PDF). Arquivos são lidos e descartados; CPF, conta e código de cliente nunca são gravados. Negócio sem nota aparece como "sem nota", nunca com custo inventado.
 * Nenhum dado real do perfil (capital, limites, corretagem) entra no repositório: os limites do painel ficam só no banco.

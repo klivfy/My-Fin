@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BookOpenText,
+  Briefcase,
   CalendarClock,
   Gauge,
   Landmark,
@@ -42,6 +43,7 @@ export const NAV_GROUPS: Array<{ label: string; items: NavItem[] }> = [
     items: [
       { href: "/trading", label: "Diário", icon: BookOpenText },
       { href: "/trading/risco", label: "Risco", icon: Gauge },
+      { href: "/investimentos", label: "Carteira", icon: Briefcase },
     ],
   },
 ];

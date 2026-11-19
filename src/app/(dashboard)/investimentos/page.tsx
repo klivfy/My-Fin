@@ -81,7 +81,7 @@ export default async function InvestmentsPage() {
                 context="realizado"
               />
               <Stat
-                label="Custos das notas"
+                label="Custos registrados"
                 value={
                   <Money value={totals.fees} tone="neutral" showSign={false} />
                 }
@@ -145,6 +145,14 @@ function Stat({
 const TH = "px-4 py-2.5 font-medium";
 const TD = "px-4 py-2.5";
 // Tabela de negócios tem 8 colunas: célula mais estreita para caber ao lado do painel em 1280.
+const ORIGIN: Record<
+  InvestmentTradeRow["source"],
+  { short: string; title: string }
+> = {
+  B3: { short: "B3", title: "Planilha de negociação da B3" },
+  Nota: { short: "Nota", title: "Nota de corretagem" },
+  "Open Finance": { short: "Pluggy", title: "Open Finance, lido pelo Pluggy" },
+};
 const THC = "px-3 py-2.5 font-medium";
 const TDC = "px-3 py-2.5";
 /** "2026-11-06" → "06/11": dia do pregão em algarismos tabulares. */
@@ -409,13 +417,9 @@ function TradesTable({ rows }: { rows: InvestmentTradeRow[] }) {
             </td>
             <td
               className={`${TDC} max-w-32 truncate whitespace-nowrap text-xs text-on-surface-variant`}
-              title={
-                t.source === "B3"
-                  ? "Planilha de negociação da B3"
-                  : "Nota de corretagem"
-              }
+              title={ORIGIN[t.source].title}
             >
-              {t.source === "B3" ? "B3" : "Nota"}
+              {ORIGIN[t.source].short}
               {t.broker && ` · ${t.broker}`}
             </td>
           </tr>

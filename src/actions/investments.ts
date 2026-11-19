@@ -2,27 +2,22 @@
 
 import Decimal from "decimal.js";
 import { revalidatePath } from "next/cache";
-import type { Prisma, SyncProvider } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { runAction, UserFacingError, type ActionResult } from "@/lib/action-result";
 import { B3ImportError, parseB3Negociacao } from "@/lib/investments/b3-negociacao";
-import { normalizeTicker, pairAcrossSources, withMatchKeys, type NormalizedTrade } from "@/lib/investments/common";
+import { pairAcrossSources, withMatchKeys } from "@/lib/investments/common";
+import { asDate, storedTrades, tradeData, withSyncLog, type ImportResult } from "@/lib/investments/persist";
 import { allocateFees, NotaError, parseNotaSinacor } from "@/lib/investments/nota-sinacor";
 import { extractPdfPages, PdfError } from "@/lib/investments/pdf-text";
 import { readFirstSheet, XlsxError } from "@/lib/investments/xlsx";
 
-const MAX_BYTES = 5 * 1024 * 1024;
+export type { ImportResult };
+
+/** A Vercel corta corpo acima de 4,5 MB; o next.config sobe o limite das Server Actions para 4 MB. */
+const MAX_BYTES = 4 * 1024 * 1024;
 const TOLERANCE = new Decimal("0.01");
 /** Uma planilha de anos de negócios pode passar do limite padrão de 5 s. */
 const TX_OPTIONS = { timeout: 30_000, maxWait: 10_000 };
-
-export interface ImportResult {
-  read: number;
-  inserted: number;
-  /** Negócios que já existiam vindos de outra fonte e foram completados. */
-  matched: number;
-  skipped: number;
-}
 
 function revalidateInvestments() {
   try {
@@ -35,77 +30,9 @@ function revalidateInvestments() {
 function requireFile(formData: FormData, ext: string, label: string): File {
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) throw new UserFacingError(`Escolha ${label}.`);
-  if (file.size > MAX_BYTES) throw new UserFacingError("Arquivo maior que 5 MB.");
+  if (file.size > MAX_BYTES) throw new UserFacingError("Arquivo maior que 4 MB.");
   if (!file.name.toLowerCase().endsWith(ext)) throw new UserFacingError(`O arquivo precisa ser ${ext}.`);
   return file;
-}
-
-/** Abre um SyncLog, roda a importação e fecha o log com sucesso ou falha. */
-async function withSyncLog(
-  provider: SyncProvider,
-  fn: (syncLogId: string) => Promise<ImportResult>,
-): Promise<ImportResult> {
-  const log = await prisma.syncLog.create({ data: { provider, status: "RUNNING" } });
-  try {
-    const result = await fn(log.id);
-    await prisma.syncLog.update({
-      where: { id: log.id },
-      data: {
-        status: "SUCCESS",
-        recordsProcessed: result.read,
-        recordsInserted: result.inserted,
-        recordsSkipped: result.skipped,
-        finishedAt: new Date(),
-      },
-    });
-    return result;
-  } catch (error) {
-    await prisma.syncLog.update({
-      where: { id: log.id },
-      data: {
-        status: "FAILED",
-        errorDetails: error instanceof Error ? error.message : String(error),
-        finishedAt: new Date(),
-      },
-    });
-    throw error;
-  }
-}
-
-const asDate = (iso: string) => new Date(`${iso}T00:00:00Z`);
-const isoOf = (d: Date) => d.toISOString().slice(0, 10);
-
-/** Negócios gravados nas datas informadas, no formato do pareamento. */
-async function storedTrades(tx: Prisma.TransactionClient, dates: string[], where: Prisma.InvestmentTradeWhereInput) {
-  const rows = await tx.investmentTrade.findMany({
-    where: { ...where, tradeDate: { in: [...new Set(dates)].map(asDate) } },
-    select: { id: true, tradeDate: true, side: true, ticker: true, quantity: true, price: true },
-  });
-  return rows.map((r) => ({
-    id: r.id,
-    tradeDate: isoOf(r.tradeDate),
-    side: r.side,
-    ticker: r.ticker,
-    tickerKnown: normalizeTicker(r.ticker) !== null,
-    quantity: r.quantity,
-    price: new Decimal(r.price.toString()),
-  }));
-}
-
-function tradeData(t: NormalizedTrade & { matchKey: string }, source: SyncProvider, syncLogId: string) {
-  return {
-    tradeDate: asDate(t.tradeDate),
-    side: t.side,
-    ticker: t.ticker,
-    market: t.market,
-    broker: t.broker,
-    quantity: t.quantity,
-    price: t.price.toFixed(4),
-    grossAmount: t.grossAmount.toFixed(2),
-    source,
-    matchKey: t.matchKey,
-    syncLogId,
-  };
 }
 
 /**
@@ -133,12 +60,13 @@ export async function importB3Negociacao(formData: FormData): Promise<ActionResu
         const knownKeys = new Set(known.map((k) => k.matchKey));
         const fresh = trades.filter((t) => !knownKeys.has(t.matchKey));
 
-        const fromNotes = await storedTrades(
+        const fromOtherSources = await storedTrades(
           tx,
           fresh.map((t) => t.tradeDate),
-          { source: "BROKERAGE_NOTE_PDF" },
+          // Negócios que vieram antes pela nota ou pelo Pluggy ganham o código da B3, sem duplicar.
+          { source: { in: ["BROKERAGE_NOTE_PDF", "PLUGGY"] } },
         );
-        const { pairs, unmatched } = pairAcrossSources(fresh, fromNotes);
+        const { pairs, unmatched } = pairAcrossSources(fresh, fromOtherSources);
         for (const { incoming, existing } of pairs) {
           await tx.investmentTrade.update({
             where: { id: existing.id },

@@ -5,7 +5,7 @@ Regras visuais do My-Fin (finanças pessoais e diário de trading na mesma inter
 ## Direção
 
 * Modo **Operar**: escaneabilidade, densidade moderada, marca nos detalhes. Finanças e trading são duas seções do mesmo livro, com o mesmo vocabulário visual.
-* Cena: mesa de trabalho, de dia durante o pregão e à noite na revisão. O tema segue o sistema (`next-themes`, `defaultTheme="system"`).
+* Cena: mesa de trabalho, de dia durante o pregão. **Só tema claro, por decisão do usuário**: não adicionar tema escuro, `dark:` nem seletor de tema. A página fixa `color-scheme: light`.
 * Evitar os dois trilhos da categoria: o painel genérico de cards com pílulas verdes e o terminal escuro com neon.
 
 ## Cor
@@ -13,7 +13,7 @@ Regras visuais do My-Fin (finanças pessoais e diário de trading na mesma inter
 * Estratégia **Contida**: neutros frios levemente tingidos (matiz 255) e **um** acento de tinta azul (`--primary`) para ação, foco, seleção e série principal de gráfico.
 * Ganho e perda: `--income` e `--expense`, sempre com sinal e texto. Cor nunca é o único código.
 * `--warning` só para estado que pede atenção (ex.: limites não configurados).
-* Tokens em `src/app/globals.css`; componente não usa cor fixa. Todo par de texto e controle é conferido por `src/lib/design/contrast.test.ts` nos dois temas (texto 4.5:1, controle e foco 3:1). Mudou a paleta e o teste falhou: ajuste a luminosidade, não o teste.
+* Tokens em `src/app/globals.css`; componente não usa cor fixa. Todo par de texto e controle é conferido por `src/lib/design/contrast.test.ts` (texto 4.5:1, controle e foco 3:1). Mudou a paleta e o teste falhou: ajuste a luminosidade, não o teste.
 
 ## Superfícies
 

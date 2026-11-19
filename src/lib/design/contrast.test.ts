@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 /**
  * Piso de acessibilidade dos tokens: lê globals.css e calcula o contraste
- * WCAG 2.2 dos pares que o app usa, nos dois temas. Mudou a paleta e este
+ * WCAG 2.2 dos pares que o app usa,. Mudou a paleta e este
  * teste falhou? O par ficou ilegível; ajuste a luminosidade, não o teste.
  */
 const css = readFileSync(join(process.cwd(), "src/app/globals.css"), "utf8");
@@ -77,8 +77,8 @@ const UI_PAIRS: Array<[string, string]> = [
   ["input", "card"],
 ];
 
-describe.each([":root", ".dark"])("contraste dos tokens em %s", (selector) => {
-  const t = block(selector);
+describe("contraste dos tokens (tema claro)", () => {
+  const t = block(":root");
 
   it.each(TEXT_PAIRS)("texto %s sobre %s ≥ 4.5:1", (fg, bg) => {
     expect(t[fg], fg).toBeDefined();

@@ -35,7 +35,7 @@ export function Money({
 
   return (
     <span
-      className={cn("money-value tabular-nums font-semibold", TONE_CLASS[resolvedTone], className)}
+      className={cn("money-value tabular-nums font-semibold whitespace-nowrap", TONE_CLASS[resolvedTone], className)}
     >
       {prefix}
       {formatBRL(numeric)}

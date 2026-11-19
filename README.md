@@ -10,7 +10,7 @@ monetária exata (`Decimal`, nunca `Float`/`Number`).
 | Camada       | Tecnologia                                                   |
 | ------------ | ------------------------------------------------------------- |
 | Framework    | Next.js 16 (App Router, Server Actions, TypeScript `strict`)   |
-| UI           | Tailwind CSS v4 + shadcn/ui (Material Design 3) + Lucide Icons |
+| UI           | Tailwind CSS v4 + shadcn/ui (Material Design 3) + Lucide Icons; regras em `DESIGN.md` |
 | Gráficos     | Recharts                                                       |
 | Banco        | PostgreSQL (compatível com Supabase / Neon, com pooling)       |
 | ORM          | Prisma 6 (`prisma-client-js`)                                  |

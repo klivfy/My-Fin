@@ -1,8 +1,8 @@
 export type PeriodKey = "current-month" | "previous-month" | "quarter" | "year";
 
 export const PERIOD_OPTIONS: Array<{ value: PeriodKey; label: string }> = [
-  { value: "current-month", label: "Mês Atual" },
-  { value: "previous-month", label: "Mês Anterior" },
+  { value: "current-month", label: "Mês atual" },
+  { value: "previous-month", label: "Mês anterior" },
   { value: "quarter", label: "Trimestre" },
   { value: "year", label: "Ano" },
 ];
@@ -33,7 +33,7 @@ export function resolvePeriodRange(period?: string): PeriodRange {
     case "previous-month": {
       const prevMonth = month === 0 ? 11 : month - 1;
       const prevYear = month === 0 ? year - 1 : year;
-      return { key, label: "Mês Anterior", from: startOfMonthUTC(prevYear, prevMonth), to: endOfMonthUTC(prevYear, prevMonth) };
+      return { key, label: "Mês anterior", from: startOfMonthUTC(prevYear, prevMonth), to: endOfMonthUTC(prevYear, prevMonth) };
     }
     case "quarter": {
       const quarterStartMonth = month - 2 < 0 ? 0 : month - 2;
@@ -43,7 +43,7 @@ export function resolvePeriodRange(period?: string): PeriodRange {
       return { key, label: "Ano", from: startOfMonthUTC(year, 0), to: endOfMonthUTC(year, 11) };
     case "current-month":
     default:
-      return { key: "current-month", label: "Mês Atual", from: startOfMonthUTC(year, month), to: endOfMonthUTC(year, month) };
+      return { key: "current-month", label: "Mês atual", from: startOfMonthUTC(year, month), to: endOfMonthUTC(year, month) };
   }
 }
 

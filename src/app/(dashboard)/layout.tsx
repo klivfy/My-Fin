@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { PrivacyModeProvider } from "@/components/privacy-mode";
-import { NavRail } from "@/components/nav-rail";
+import { AppNav } from "@/components/app-nav";
 import { TopAppBar } from "@/components/dashboard/top-app-bar";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -25,9 +25,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <PrivacyModeProvider>
-      <div className="flex min-h-screen bg-surface-dim">
-        <NavRail />
-        <div className="flex min-w-0 flex-1 flex-col pb-16 md:pb-0">
+      <div className="flex min-h-dvh bg-surface">
+        <AppNav />
+        <div className="flex min-w-0 flex-1 flex-col pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0">
           <TopAppBar
             lastSync={
               lastSync
@@ -37,7 +37,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
             accounts={accounts}
             categories={categories}
           />
-          <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+          <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
         </div>
       </div>
       <Toaster />

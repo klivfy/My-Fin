@@ -16,10 +16,18 @@ import type { DailyBalancePoint } from "@/lib/queries/dashboard";
 export function CashFlowChart({ data }: { data: DailyBalancePoint[] }) {
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-sm font-medium text-on-surface-variant">
-          Fluxo de Caixa — Saldo Acumulado (Realizado vs. Projetado)
-        </CardTitle>
+      <CardHeader className="flex flex-wrap items-baseline justify-between gap-2">
+        <CardTitle className="text-sm font-medium text-on-surface">Saldo acumulado no período (R$)</CardTitle>
+        <p className="flex items-center gap-4 text-xs text-on-surface-variant">
+          <span className="flex items-center gap-1.5">
+            <span className="h-0.5 w-4 rounded-full bg-primary" aria-hidden />
+            Realizado
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-4 border-t-2 border-dashed border-on-surface-variant" aria-hidden />
+            Projetado
+          </span>
+        </p>
       </CardHeader>
       <CardContent className="h-72">
         <ResponsiveContainer width="100%" height="100%">

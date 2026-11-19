@@ -23,7 +23,6 @@ export interface DailyBalancePoint {
 
 export interface DashboardData {
   netWorth: number;
-  netWorthSparkline: number[];
   income: number;
   expense: number;
   savingsRatePct: number | null;
@@ -87,7 +86,6 @@ export async function getDashboardData(range: PeriodRange): Promise<DashboardDat
     });
   }
 
-  const netWorthSparkline = dailyBalanceSeries.map((point) => point.projected);
 
   // --- Entradas vs Saídas do período (exclui TRANSFER/ADJUSTMENT) ---
   const periodTransactions = await prisma.transaction.findMany({
@@ -140,7 +138,6 @@ export async function getDashboardData(range: PeriodRange): Promise<DashboardDat
 
   return {
     netWorth: netWorth.toDecimalPlaces(2).toNumber(),
-    netWorthSparkline,
     income: income.toDecimalPlaces(2).toNumber(),
     expense: expense.toDecimalPlaces(2).toNumber(),
     savingsRatePct,

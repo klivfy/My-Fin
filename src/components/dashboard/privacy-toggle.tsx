@@ -9,7 +9,8 @@ export function PrivacyToggle() {
   return (
     <Button
       variant="ghost"
-      size="icon"
+      size="icon-lg"
+      className="size-10"
       onClick={toggle}
       aria-pressed={enabled}
       aria-label={enabled ? "Desativar modo privacidade" : "Ativar modo privacidade"}

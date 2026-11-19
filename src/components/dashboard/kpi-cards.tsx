@@ -1,59 +1,52 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Money } from "@/components/money";
 import { formatPercent } from "@/lib/format";
-import { Sparkline } from "@/components/dashboard/sparkline";
 import type { DashboardData } from "@/lib/queries/dashboard";
 
+/**
+ * Resumo do período numa faixa só: mesmo formato do resumo do diário de
+ * trading, para as duas seções lerem igual. Rótulo, valor e contexto real.
+ */
 export function KpiCards({ data }: { data: DashboardData }) {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-on-surface-variant">
-            Patrimônio Líquido
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <Money value={data.netWorth} tone="neutral" showSign={false} className="text-2xl" />
-          <Sparkline data={data.netWorthSparkline} tone={data.netWorth >= 0 ? "income" : "expense"} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-on-surface-variant">
-            Entradas vs. Saídas
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-baseline justify-between">
-            <span className="text-xs text-on-surface-variant">Entradas</span>
-            <Money value={data.income} tone="income" className="text-lg" />
+    <section aria-labelledby="resumo-financas" className="rounded-xl border border-outline-variant bg-card p-5">
+      <h2 id="resumo-financas" className="sr-only">
+        Resumo do período
+      </h2>
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-5 lg:grid-cols-4">
+        <div className="col-span-2 lg:col-span-1">
+          <dt className="text-sm text-on-surface-variant">Patrimônio líquido</dt>
+          <dd className="mt-1 text-2xl">
+            <Money value={data.netWorth} tone="neutral" showSign={false} />
+          </dd>
+          <dd className="mt-0.5 text-xs text-on-surface-variant">soma das contas ativas hoje</dd>
+        </div>
+        <div>
+          <dt className="text-sm text-on-surface-variant">Entradas</dt>
+          <dd className="mt-1 text-lg">
+            <Money value={data.income} tone="income" />
+          </dd>
+        </div>
+        <div>
+          <dt className="text-sm text-on-surface-variant">Saídas</dt>
+          <dd className="mt-1 text-lg">
+            <Money value={data.expense} tone="expense" showSign={false} />
+          </dd>
+        </div>
+        <div className="col-span-2 grid grid-cols-2 gap-x-6 lg:col-span-1 lg:grid-cols-1 lg:gap-y-1">
+          <div>
+            <dt className="text-sm text-on-surface-variant">Taxa de poupança</dt>
+            <dd className="mt-1 text-lg font-semibold tabular-nums text-on-surface">
+              {data.savingsRatePct === null ? "sem entradas" : formatPercent(data.savingsRatePct)}
+            </dd>
           </div>
-          <div className="flex items-baseline justify-between">
-            <span className="text-xs text-on-surface-variant">Saídas</span>
-            <Money value={data.expense} tone="expense" showSign={false} className="text-lg" />
+          <div>
+            <dt className="text-sm text-on-surface-variant">Gasto médio por dia</dt>
+            <dd className="mt-1 text-sm">
+              <Money value={data.dailyBurnRate} tone="neutral" showSign={false} className="font-medium" />
+            </dd>
           </div>
-          <div className="flex items-baseline justify-between border-t border-outline-variant pt-2">
-            <span className="text-xs text-on-surface-variant">Taxa de poupança</span>
-            <span className="tabular-nums text-sm font-semibold text-on-surface">
-              {data.savingsRatePct === null ? "—" : formatPercent(data.savingsRatePct)}
-            </span>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-on-surface-variant">
-            Burn Rate Diário
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <Money value={-data.dailyBurnRate} tone="expense" showSign={false} className="text-2xl" />
-          <p className="text-xs text-on-surface-variant">Média de gasto por dia no período selecionado.</p>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </dl>
+    </section>
   );
 }

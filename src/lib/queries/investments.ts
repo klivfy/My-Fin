@@ -1,5 +1,6 @@
 import Decimal from "decimal.js";
 import { prisma } from "@/lib/prisma";
+import { pluggyCredentials } from "@/lib/investments/pluggy-client";
 import { computePositions } from "@/lib/investments/positions";
 
 const dec = (v: { toString(): string }) => new Decimal(v.toString());
@@ -24,15 +25,21 @@ export interface InvestmentTradeRow {
   price: number;
   grossAmount: number;
   fees: number;
+  /** Custo conhecido: veio da nota ou das despesas informadas pelo Pluggy. */
   hasNote: boolean;
-  source: "B3" | "Nota";
+  source: "B3" | "Nota" | "Open Finance";
 }
 
 export interface SourcesView {
   b3: { lastImportAt: string | null; lastInserted: number | null; failed: boolean };
   notes: { count: number; lastTradeDate: string | null; lastImportAt: string | null; failed: boolean };
   tradesWithoutNote: number;
-  openFinanceConnections: number;
+  openFinance: {
+    /** Credenciais do Pluggy presentes no servidor (o valor nunca sai dele). */
+    configured: boolean;
+    connections: Array<{ id: string; label: string; status: string; lastSyncAt: string | null }>;
+    lastFailed: boolean;
+  };
 }
 
 export interface PortfolioView {
@@ -45,17 +52,25 @@ export interface PortfolioView {
 
 const RECENT = 100;
 
+const costKnown = (t: { brokerageNoteId: string | null; source: string; fees: { toString(): string } }) =>
+  t.brokerageNoteId !== null || (t.source === "PLUGGY" && Number(t.fees.toString()) > 0);
+
 /** Carteira montada a partir de todos os negócios importados (escala pessoal: poucos milhares de linhas). */
 export async function getPortfolio(): Promise<PortfolioView> {
-  const lastLog = (provider: "B3_XLSX" | "BROKERAGE_NOTE_PDF") =>
+  const lastLog = (provider: "B3_XLSX" | "BROKERAGE_NOTE_PDF" | "PLUGGY") =>
     prisma.syncLog.findFirst({ where: { provider }, orderBy: { createdAt: "desc" } });
-  const [trades, notes, lastNote, b3Log, noteLog, connections] = await Promise.all([
+  const [trades, notes, lastNote, b3Log, noteLog, pluggyLog, connections] = await Promise.all([
     prisma.investmentTrade.findMany({ orderBy: [{ tradeDate: "asc" }, { createdAt: "asc" }] }),
     prisma.brokerageNote.count(),
     prisma.brokerageNote.findFirst({ orderBy: { tradeDate: "desc" }, select: { tradeDate: true } }),
     lastLog("B3_XLSX"),
     lastLog("BROKERAGE_NOTE_PDF"),
-    prisma.investmentConnection.count({ where: { status: "ACTIVE" } }),
+    lastLog("PLUGGY"),
+    prisma.investmentConnection.findMany({
+      where: { provider: "PLUGGY" },
+      select: { id: true, label: true, status: true, lastSyncAt: true },
+      orderBy: { createdAt: "asc" },
+    }),
   ]);
   const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
 
@@ -98,8 +113,8 @@ export async function getPortfolio(): Promise<PortfolioView> {
         price: dec(t.price).toNumber(),
         grossAmount: dec(t.grossAmount).toNumber(),
         fees: dec(t.fees).toNumber(),
-        hasNote: t.brokerageNoteId !== null,
-        source: t.source === "B3_XLSX" ? "B3" : "Nota",
+        hasNote: costKnown(t),
+        source: t.source === "B3_XLSX" ? "B3" : t.source === "PLUGGY" ? "Open Finance" : "Nota",
       })),
     totals: {
       openCost: sum((p) => p.totalCost),
@@ -120,8 +135,12 @@ export async function getPortfolio(): Promise<PortfolioView> {
         lastImportAt: iso(noteLog?.finishedAt),
         failed: noteLog?.status === "FAILED",
       },
-      tradesWithoutNote: trades.filter((t) => t.brokerageNoteId === null).length,
-      openFinanceConnections: connections,
+      tradesWithoutNote: trades.filter((t) => !costKnown(t)).length,
+      openFinance: {
+        configured: pluggyCredentials() !== null,
+        connections: connections.map((c) => ({ ...c, lastSyncAt: iso(c.lastSyncAt) })),
+        lastFailed: pluggyLog?.status === "FAILED",
+      },
     },
   };
 }

@@ -1,10 +1,11 @@
 "use client";
 
 import { useId, useRef, useState, useTransition } from "react";
-import { AlertCircle, Check, FileSpreadsheet, FileText, Loader2 } from "lucide-react";
+import { AlertCircle, Check, FileSpreadsheet, FileText, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { importB3Negociacao, importBrokerageNote, type ImportResult } from "@/actions/investments";
+import { connectPluggyItem, disconnectPluggy, syncPluggy, type PluggySyncResult } from "@/actions/pluggy";
 import { PDF_NEEDS_PASSWORD, PDF_WRONG_PASSWORD } from "@/lib/investments/messages";
 import { formatDateShort } from "@/lib/format";
 import type { SourcesView } from "@/lib/queries/investments";
@@ -47,7 +48,7 @@ export function SourcesPanel({ sources }: { sources: SourcesView }) {
       <ul className="divide-y divide-outline-variant">
         <B3Row b3={sources.b3} />
         <NotesRow notes={sources.notes} withoutNote={sources.tradesWithoutNote} />
-        <OpenFinanceRow connections={sources.openFinanceConnections} />
+        <OpenFinanceRow openFinance={sources.openFinance} />
       </ul>
     </section>
   );
@@ -261,15 +262,178 @@ function NotesRow({ notes, withoutNote }: { notes: SourcesView["notes"]; without
   );
 }
 
-function OpenFinanceRow({ connections }: { connections: number }) {
+function pluggySummary(r: PluggySyncResult): string {
+  const parts = [summary(r)];
+  if (r.ignored > 0) {
+    parts.push(
+      `${plural(r.ignored, "movimento fora de ações, FIIs e ETFs ficou", "movimentos fora de ações, FIIs e ETFs ficaram")} de fora.`,
+    );
+  }
+  return [...parts, ...r.failures].join(" ");
+}
+
+const CONNECTION_STATE: Record<string, { text: string; className: string }> = {
+  ACTIVE: { text: "conectada", className: "text-on-surface-variant" },
+  EXPIRED: {
+    text: "pede login de novo no Pluggy",
+    className: "text-warning-on-container",
+  },
+  ERROR: { text: "a última sincronização falhou", className: "text-expense" },
+  REVOKED: { text: "desativada", className: "text-on-surface-variant" },
+};
+
+function OpenFinanceRow({
+  openFinance,
+}: {
+  openFinance: SourcesView["openFinance"];
+}) {
+  const itemId = useId();
+  const itemHelpId = useId();
+  const [pending, startTransition] = useTransition();
+  const [status, setStatus] = useState<Status>(null);
+
+  function run(
+    busy: string,
+    action: () => Promise<
+      { ok: true; data: PluggySyncResult } | { ok: false; error: string }
+    >,
+  ) {
+    setStatus({ tone: "busy", text: busy });
+    startTransition(async () => {
+      const result = await action();
+      setStatus(
+        result.ok
+          ? { tone: "ok", text: pluggySummary(result.data) }
+          : { tone: "error", text: result.error },
+      );
+    });
+  }
+
+  if (!openFinance.configured) {
+    return (
+      <Row
+        title="Open Finance"
+        help="Não configurado. Grave PLUGGY_CLIENT_ID e PLUGGY_CLIENT_SECRET nas variáveis de ambiente do servidor para ler a corretora pelo Pluggy. Até lá, use os arquivos acima."
+      />
+    );
+  }
+
+  const { connections } = openFinance;
+  const lastSync = connections
+    .map((c) => c.lastSyncAt)
+    .filter((d): d is string => d !== null)
+    .sort()
+    .at(-1);
+
   return (
     <Row
       title="Open Finance"
-      help={
-        connections > 0
-          ? `${plural(connections, "conexão ativa", "conexões ativas")}.`
-          : "Não conectado. A leitura automática da corretora depende de um cadastro no agregador, que ainda não foi feito. Até lá, use os arquivos acima."
+      help="Negócios da corretora lidos pelo Pluggy. Compras e vendas que já vieram da B3 ou das notas não são duplicadas."
+      meta={
+        connections.length === 0
+          ? "Nenhuma conexão cadastrada."
+          : lastSync
+            ? `Última sincronização em ${day(lastSync)}.`
+            : "Ainda não sincronizado."
       }
-    />
+    >
+      {connections.length > 0 && (
+        <ul className="space-y-2">
+          {connections.map((c) => {
+            const state = CONNECTION_STATE[c.status] ?? CONNECTION_STATE.ACTIVE;
+            return (
+              <li
+                key={c.id}
+                className="flex items-start justify-between gap-3 text-sm"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-on-surface">
+                    {c.label}
+                  </p>
+                  <p className={cn("text-xs", state.className)}>{state.text}</p>
+                </div>
+                <form
+                  action={(fd) =>
+                    startTransition(async () => {
+                      const result = await disconnectPluggy(fd);
+                      setStatus(
+                        result.ok
+                          ? {
+                              tone: "ok",
+                              text: `${c.label} desconectada. Os negócios já importados continuam na carteira.`,
+                            }
+                          : { tone: "error", text: result.error },
+                      );
+                    })
+                  }
+                >
+                  <input type="hidden" name="id" value={c.id} />
+                  <Button
+                    type="submit"
+                    variant="ghost"
+                    size="sm"
+                    disabled={pending}
+                    aria-label={`Desconectar ${c.label}`}
+                  >
+                    Desconectar
+                  </Button>
+                </form>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {connections.length > 0 ? (
+        <Button
+          variant="outline"
+          size="lg"
+          disabled={pending}
+          onClick={() => run("Sincronizando com o Pluggy…", syncPluggy)}
+        >
+          <RefreshCw aria-hidden />
+          Sincronizar agora
+        </Button>
+      ) : (
+        <form
+          className="space-y-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const fd = new FormData(e.currentTarget);
+            run("Conectando e lendo os negócios…", () => connectPluggyItem(fd));
+          }}
+        >
+          <label
+            htmlFor={itemId}
+            className="block text-sm font-medium text-on-surface"
+          >
+            Id do item no Pluggy
+          </label>
+          <Input
+            id={itemId}
+            name="itemId"
+            required
+            autoComplete="off"
+            spellCheck={false}
+            pattern="[0-9a-fA-F\-]{36}"
+            aria-describedby={itemHelpId}
+            placeholder="00000000-0000-0000-0000-000000000000"
+            className="h-10 font-mono text-sm"
+          />
+          <p
+            id={itemHelpId}
+            className="text-xs text-pretty text-on-surface-variant"
+          >
+            Crie a conexão com a corretora no Pluggy e cole aqui o id do item.
+            Ele é guardado cifrado; login e senha da corretora ficam só no
+            Pluggy.
+          </p>
+          <Button type="submit" size="lg" disabled={pending}>
+            Conectar e sincronizar
+          </Button>
+        </form>
+      )}
+      <StatusLine status={status} />
+    </Row>
   );
 }

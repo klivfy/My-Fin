@@ -10,7 +10,7 @@ import crypto from "node:crypto";
  * permite trocar o algoritmo no futuro sem ambiguidade.
  *
  * A chave vem de `ENCRYPTION_KEY` (32 bytes em base64), configurada só nas
- * variáveis de ambiente da Netlify. Gere com:
+ * variáveis de ambiente da Vercel. Gere com:
  *   node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
  */
 

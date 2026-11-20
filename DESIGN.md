@@ -56,3 +56,13 @@ Mesmo mundo do resto do app (modo Operar, tema claro, um acento). Regras própri
 * **Tabelas:** `tabular-nums`, números à direita, ativo como `th scope="row"`, rolagem horizontal só dentro da moldura. A de negócios usa células `px-3`, pregão como `dd/mm` e origem curta ("B3 · XP") para caber ao lado do painel em 1280px.
 * **Open Finance (Pluggy):** sem credenciais no servidor, a linha diz o que falta e não tem botão. Com credenciais: campo "Id do item no Pluggy" (label visível, mono por ser identificador) até existir conexão; depois, cada conexão com estado em texto (conectada, pede login de novo, falhou) e "Sincronizar agora". O resumo diz o que foi importado, o que já existia e o que ficou de fora (renda fixa, taxas). Origem na tabela: "Pluggy · corretora".
 * **Carregamento:** `loading.tsx` espelha o layout (cabeçalho, faixa de 4 números, linhas de tabela, painel) com `aria-busy`, sem spinner de página.
+
+## Dívidas (`/dividas`)
+
+* Plano de quitação, não promessa: a tela compara "só as parcelas", bola de neve (menor primeiro) e avalanche (maior juro primeiro) com o **mesmo orçamento mensal**, e mostra o custo e o prazo de cada um. Quem escolhe o método é o usuário; o padrão é o mais barato (no empate, bola de neve).
+* O veredito diz os dois lados em texto: quanto a avalanche economiza e quantos meses antes a bola de neve fecha a segunda dívida. Sem selo de "melhor".
+* O mínimo de cada dívida é a parcela inteira. A tela nunca sugere pagar o mínimo da fatura do cartão.
+* "Para quitar hoje" é estimativa (valor presente das parcelas) e diz isso. As premissas (desconto de juros ao adiantar, CDC art. 52 § 2º; tabela Price) ficam escritas no fim da página.
+* Extra mensal fica na URL (`?extra=`); o atalho "Usar a sobra real" usa a mesma sobra das metas de poupança e avisa para não contar duas vezes.
+* "Paguei 1" desconta uma parcela com confirmação; a última quita e tira a dívida do plano.
+* Tabelas com `relative` na moldura de rolagem: texto `sr-only` dentro da tabela não pode vazar a largura da página no celular.

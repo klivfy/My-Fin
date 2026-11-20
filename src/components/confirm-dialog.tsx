@@ -26,6 +26,7 @@ export function ConfirmDialog({
   pending,
   error,
   onConfirm,
+  destructive = true,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -35,6 +36,8 @@ export function ConfirmDialog({
   pending: boolean;
   error: string | null;
   onConfirm: () => void;
+  /** false para confirmações que não apagam nada (ex.: registrar parcela paga). */
+  destructive?: boolean;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -51,8 +54,8 @@ export function ConfirmDialog({
         )}
         <DialogFooter>
           <DialogClose render={<Button variant="outline" disabled={pending} />}>Cancelar</DialogClose>
-          <Button variant="destructive" onClick={onConfirm} disabled={pending}>
-            {pending ? "Excluindo…" : confirmLabel}
+          <Button variant={destructive ? "destructive" : "default"} onClick={onConfirm} disabled={pending}>
+            {pending ? (destructive ? "Excluindo…" : "Salvando…") : confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

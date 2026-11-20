@@ -10,6 +10,10 @@ export interface BudgetView {
   progressPct: number;
   expectedPct: number;
   isAcceleratedBurn: boolean;
+  /** Dias até o fim do mês, contando hoje. */
+  daysLeft: number;
+  /** O que ainda cabe no teto dividido pelos dias restantes (0 se estourou). */
+  perDayLeft: number;
 }
 
 /** Orçamentos do mês corrente: gasto real (EXPENSE) vs. teto planejado por categoria. */
@@ -20,6 +24,7 @@ export async function getBudgetViews(): Promise<BudgetView[]> {
   const daysInMonth = monthEnd.getUTCDate();
   const dayOfMonth = now.getUTCDate();
   const expectedPct = dayOfMonth / daysInMonth;
+  const daysLeft = daysInMonth - dayOfMonth + 1;
 
   const categories = await prisma.category.findMany({
     where: { type: "EXPENSE", budgetLimit: { not: null } },
@@ -57,6 +62,8 @@ export async function getBudgetViews(): Promise<BudgetView[]> {
       // Ritmo acelerado: já gastou proporcionalmente mais do que o esperado
       // para o ponto atual do mês, com folga de 10pp para não alarmar por ruído.
       isAcceleratedBurn: progressPct > expectedPct + 0.1 && progressPct < 1,
+      daysLeft,
+      perDayLeft: Decimal.max(limit.minus(spent), 0).dividedBy(daysLeft).toDecimalPlaces(2, Decimal.ROUND_DOWN).toNumber(),
     };
   });
 }

@@ -8,6 +8,7 @@ import {
   Briefcase,
   CalendarClock,
   Gauge,
+  HandCoins,
   Landmark,
   LayoutDashboard,
   ListChecks,
@@ -36,6 +37,7 @@ export const NAV_GROUPS: Array<{ label: string; items: NavItem[] }> = [
       { href: "/recurring", label: "Recorrentes", icon: CalendarClock },
       { href: "/accounts", label: "Contas", icon: Landmark },
       { href: "/budgets", label: "Orçamentos", icon: PiggyBank },
+      { href: "/dividas", label: "Dívidas", icon: HandCoins },
     ],
   },
   {

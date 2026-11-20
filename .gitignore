@@ -40,3 +40,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# trader-b3: dados pessoais gerados pelas skills (diário, carteira, ordens,
+# config com limites e corretagem). Nunca versionar, em qualquer pasta.
+trader/
+__pycache__/
+*.pyc

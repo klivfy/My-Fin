@@ -1,0 +1,39 @@
+{
+  "_sobre": "Config de teste com números fixos; os testes dependem destes valores.",
+
+  "capital": 500,
+  "aporte_extra_max": 100,
+  "aporte_exige_revisao": "trader/revisao_perdas.md",
+  "risco_por_operacao": 5,
+  "perda_max_dia": 15,
+  "perda_max_mes": 50,
+  "pausa_dias_apos_mes": 7,
+  "max_operacoes_dia": 3,
+  "posicao_max_pct": 40,
+  "caixa_min_pct": 5,
+  "rr_min": 1.5,
+
+  "fase": 1,
+  "fases": {"1": {"inicio": null}, "2": {"inicio": null}, "3": {"inicio": null}},
+  "classes_por_fase": {"1": ["acao", "fii", "bdr"], "2": ["acao", "fii", "bdr"], "3": ["acao", "fii", "bdr", "opcao"]},
+  "estilos_reais_por_fase": {"1": [], "2": ["swing"], "3": ["swing", "day"]},
+  "semanas_fase1": 4,
+  "criterio_fase3": {"operacoes_min": 30, "conta": "day trades simulados desde o início da fase 2", "expectativa_min_rs": 0},
+
+  "modo": "simulado",
+  "corretagem": {"swing": 4.90, "day": 2.90, "fonte": "valores fixos de teste", "canal": "teste"},
+  "custo_alto_no_simulado": "avisar",
+
+  "plataformas": ["app", "home_broker", "mt5"],
+  "janela": {"minutos_apos_abertura": 15, "minutos_antes_do_fim": 40},
+  "zerar_minutos_antes_do_fim": 15,
+  "zerar_ate": null,
+  "deslizamento_ticks": 1,
+  "prazo_swing_pregoes": 10,
+  "risco_min_pct_preco": 0.3,
+
+  "opcoes": {"so_compra": true, "premio_max": 50, "premio_conta_como_perda": true, "fase_min": 3},
+  "proibidos": ["alavancagem", "minicontratos", "venda_descoberta", "aluguel", "termo", "opcao_vendida"],
+
+  "sec_user_agent": ""
+}

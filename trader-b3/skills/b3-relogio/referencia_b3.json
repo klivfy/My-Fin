@@ -1,0 +1,524 @@
+{
+  "_sobre": "Fatos voláteis da B3, da XP e da Receita. Todo código lê daqui; nada disso fica fixo no código. Cada fato tem fonte e data de consulta. Reverificar conforme docs/MANUTENCAO.md.",
+  "versao": 1,
+  "gerado_em": "2026-11-08",
+  "fuso": {
+    "nome": "America/Sao_Paulo",
+    "utc_offset_horas": -3,
+    "horario_de_verao_brasil": false,
+    "nota": "Brasil sem horário de verão desde o Decreto 9.772/2019. Governo concluiu que não haverá horário de verão em 2026/2027. O código usa offset fixo para não depender do pacote tzdata no Windows.",
+    "fontes": [
+      {
+        "url": "https://www.jb.com.br/editorias/2026/10/05/horario-de-verao-2026.html",
+        "consultado_em": "2026-11-08"
+      },
+      {
+        "url": "https://tagdlaw.com.br/governo-descarta-retorno-do-horario-de-verao-em-2026/",
+        "consultado_em": "2026-11-08"
+      }
+    ],
+    "reverificar_ate": "2027-09-30"
+  },
+  "grades": [
+    {
+      "id": "padrao_eua_2025_2026",
+      "valida_de": "2025-11-03",
+      "valida_ate": "2026-03-06",
+      "acoes_a_vista_e_fracionario": {
+        "cancelamento_ofertas": [
+          "09:30",
+          "09:45"
+        ],
+        "pre_abertura": [
+          "09:45",
+          "10:00"
+        ],
+        "negociacao": [
+          "10:00",
+          "17:55"
+        ],
+        "call_fechamento": [
+          "17:55",
+          "18:00"
+        ],
+        "after_market": null
+      },
+      "fonte": {
+        "documento": "Ofício Circular 043/2025-VNC (23/10/2025), Anexo 2; revogado a partir de 09/03/2026 pelo 005/2026-PRE",
+        "url": "https://www.b3.com.br/data/files/36/22/17/A0/0131A910F51990A9AC094EA8/OC%20043-2025-VNC%20NOVOS%20HORARIOS%20DE%20NEGOCIACAO_PT.pdf",
+        "consultado_em": "2026-11-09"
+      },
+      "nota": "Cancelamento de ofertas 09:30 a 09:45 assumido igual ao das grades vizinhas; pré-abertura, negociação e call conferidos."
+    },
+    {
+      "id": "verao_eua_2026",
+      "valida_de": "2026-03-09",
+      "valida_ate": "2026-11-02",
+      "acoes_a_vista_e_fracionario": {
+        "cancelamento_ofertas": [
+          "09:30",
+          "09:45"
+        ],
+        "pre_abertura": [
+          "09:45",
+          "10:00"
+        ],
+        "negociacao": [
+          "10:00",
+          "16:55"
+        ],
+        "call_fechamento": [
+          "16:55",
+          "17:00"
+        ],
+        "after_market": [
+          "17:30",
+          "18:00"
+        ]
+      },
+      "fonte": {
+        "documento": "Ofício Circular 005/2026-PRE (24/02/2026), Anexo 3",
+        "url": "https://www.b3.com.br/data/files/E3/B2/C2/12/BC09C910F37907C9AC094EA8/OC%20005-2026%20PRE%20NOVOS%20HORARIOS%20DE%20NEGOCIACAO_PT.pdf",
+        "consultado_em": "2026-11-08"
+      }
+    },
+    {
+      "id": "padrao_eua_2026_2027",
+      "valida_de": "2026-11-03",
+      "valida_ate": null,
+      "reverificar_ate": "2027-03-12",
+      "nota_proxima_troca": "EUA entram em horário de verão em 14/03/2027. A B3 ainda não publicou a grade de março de 2027. Depois de 12/03/2027 sem grade confirmada, o b3-relogio bloqueia entradas.",
+      "acoes_a_vista_e_fracionario": {
+        "cancelamento_ofertas": [
+          "09:30",
+          "09:45"
+        ],
+        "pre_abertura": [
+          "09:45",
+          "10:00"
+        ],
+        "negociacao": [
+          "10:00",
+          "17:55"
+        ],
+        "call_fechamento": [
+          "17:55",
+          "18:00"
+        ],
+        "after_market": null
+      },
+      "fiis_fundos": {
+        "negociacao": [
+          "10:00",
+          "17:55"
+        ],
+        "call_fechamento": [
+          "17:55",
+          "18:00"
+        ]
+      },
+      "bdrs_patrocinados": {
+        "negociacao": [
+          "10:00",
+          "17:55"
+        ],
+        "call_fechamento": [
+          "17:55",
+          "18:00"
+        ]
+      },
+      "bdrs_nao_patrocinados": {
+        "negociacao": [
+          "10:00",
+          "17:55"
+        ],
+        "call_fechamento": [
+          "17:55",
+          "18:05"
+        ]
+      },
+      "opcoes_acoes": {
+        "negociacao": [
+          "10:00",
+          "17:55"
+        ],
+        "call_fechamento": [
+          "17:55",
+          "18:15"
+        ],
+        "vincendas_encerram": "16:45"
+      },
+      "nota_after_market": "Sem after-market para ações, exceto na data de vencimento de opções (negociação 19:25 a 19:40).",
+      "fonte": {
+        "documento": "Ofício Circular 055/2026-VNC (29/10/2026), Anexos 2 e 3. Revoga e substitui o 050/2026-VNC.",
+        "url": "https://www.b3.com.br/data/files/BE/16/C1/59/2F881A10F75B881AAC094EA8/OC%20055-2026-VNC%20NOVOS%20HORARIOS%20DE%20NEGOCIACAO_PT.pdf",
+        "consultado_em": "2026-11-08"
+      },
+      "fonte_noticia": {
+        "url": "https://www.b3.com.br/pt_br/noticias/b3-ajusta-horarios-de-negociacao-de-acoes-e-derivativos-acompanhando-fim-do-horario-de-verao-nos-eua.htm",
+        "consultado_em": "2026-11-08"
+      }
+    }
+  ],
+  "feriados": {
+    "2026": {
+      "datas": {
+        "2026-01-01": "Confraternização Universal",
+        "2026-02-16": "Carnaval",
+        "2026-02-17": "Carnaval",
+        "2026-04-03": "Sexta-feira Santa",
+        "2026-04-21": "Tiradentes",
+        "2026-05-01": "Dia do Trabalho",
+        "2026-06-04": "Corpus Christi",
+        "2026-09-07": "Independência do Brasil",
+        "2026-10-12": "Nossa Senhora Aparecida",
+        "2026-11-02": "Finados",
+        "2026-11-20": "Dia Nacional de Zumbi e da Consciência Negra",
+        "2026-12-24": "Véspera de Natal (sem sessão de negociação)",
+        "2026-12-25": "Natal",
+        "2026-12-31": "Véspera de Ano Novo (sem sessão de negociação)"
+      },
+      "pregao_normal_apesar_de_feriado_sp": [
+        "2026-07-09"
+      ],
+      "fonte": {
+        "documento": "Ofício Circular 041/2026-VNC (30/06/2026), errata do 003/2026-VNC",
+        "url": "https://www.b3.com.br/data/files/20/57/01/AA/06A1F910ADC36BE9AC094EA8/OC%20041-2026-VNC%20ERRATA%20-%20CALENDARIO%20DE%20FERIADOS%20EM%202026_PT.pdf",
+        "consultado_em": "2026-11-08"
+      }
+    },
+    "2027": null,
+    "_nota_2027": "Calendário 2027 da B3 ainda não publicado (costuma sair em dezembro). Sem lista, o b3-relogio diz 'calendário desconhecido' e bloqueia entradas."
+  },
+  "sessoes_especiais": {
+    "2026-02-18": {
+      "descricao": "Quarta-feira de Cinzas",
+      "negociacao_inicio": "13:00",
+      "fonte": {
+        "url": "https://www.b3.com.br/pt_br/noticias/confira-o-funcionamento-da-b3-no-carnaval.htm",
+        "consultado_em": "2026-11-08"
+      }
+    }
+  },
+  "vencimentos_opcoes_acoes": {
+    "regra": "Mensais: terceira sexta-feira do mês; se não houver pregão, o dia útil anterior. Semanais: todas as sextas, exceto a terceira.",
+    "mensais_2026_restantes": [
+      "2026-11-19",
+      "2026-12-18"
+    ],
+    "nota": "19/11/2026 porque 20/11 é feriado. Conferir no calendário da B3.",
+    "fontes": [
+      {
+        "url": "https://www.b3.com.br/pt_br/solucoes/plataformas/puma-trading-system/para-participantes-e-traders/calendario-de-negociacao/vencimentos/calendario-de-vencimentos-de-opcoes-sobre-acoes-e-indices/",
+        "consultado_em": "2026-11-08"
+      },
+      {
+        "url": "https://b3.com.br/pt_br/produtos-e-servicos/negociacao/renda-variavel/opcoes-semanais-sobre-acoes.htm",
+        "consultado_em": "2026-11-08"
+      }
+    ]
+  },
+  "microestrutura": {
+    "tick_acoes": 0.01,
+    "lote_padrao_acoes": 100,
+    "fracionario": {
+      "min": 1,
+      "max": 99,
+      "sufixo": "F",
+      "mesma_grade_do_a_vista": true
+    },
+    "lote_fii": 1,
+    "lote_bdr": 1,
+    "fontes": [
+      {
+        "tema": "lote BDR",
+        "url": "https://b3.com.br/pt_br/produtos-e-servicos/negociacao/renda-variavel/brazilian-depositary-receipts-bdrs-patrocinados-niveis-i-ii-e-iii.htm",
+        "consultado_em": "2026-11-08"
+      },
+      {
+        "tema": "lote BDR não patrocinado e ETF",
+        "url": "https://www.b3.com.br/pt_br/noticias/alteracao-no-lote-padrao-de-bdrs-e-etfs.htm",
+        "consultado_em": "2026-11-08"
+      },
+      {
+        "tema": "grade do fracionário",
+        "url": "https://www.b3.com.br/data/files/BE/16/C1/59/2F881A10F75B881AAC094EA8/OC%20055-2026-VNC%20NOVOS%20HORARIOS%20DE%20NEGOCIACAO_PT.pdf",
+        "consultado_em": "2026-11-08"
+      }
+    ],
+    "nota_bdr": "Paridade de BDR muda com frequência (101 BDRs mudaram em jul a ago de 2026). Paridade não afeta o lote, mas afeta o preço."
+  },
+  "custos": {
+    "emolumentos_b3_pct_por_lado": {
+      "normal": {
+        "negociacao": 0.005,
+        "ccp": 0.0224,
+        "tta": 0.0026,
+        "total": 0.03
+      },
+      "normal_em_leilao": {
+        "negociacao": 0.007,
+        "ccp": 0.0224,
+        "tta": 0.0026,
+        "total": 0.032
+      },
+      "day_trade": {
+        "negociacao": 0.005,
+        "ccp": 0.018,
+        "total": 0.023
+      },
+      "faixa": "ADTV mensal até R$ 3 milhões (normal) e ADTV day trade até R$ 0,2 milhão",
+      "fonte": {
+        "url": "https://www.b3.com.br/pt_br/produtos-e-servicos/tarifas/listados-a-vista-e-derivativos/renda-variavel/tarifas-de-acoes-e-fundos-de-investimento/a-vista/",
+        "consultado_em": "2026-11-08"
+      }
+    },
+    "corretagem_xp": {
+      "valor_por_ordem_swing": null,
+      "valor_por_ordem_day": null,
+      "status": "DESCONHECIDO. Usar o valor da nota de corretagem do usuário em trader/config.json. Sem ele, toda entrada é bloqueada com 'custo desconhecido'.",
+      "evidencias_divergentes": [
+        {
+          "diz": "day trade R$ 0 desde maio de 2025; swing R$ 4,90 por ordem",
+          "url": "https://rankia.com.br/melhores-corretoras-taxa-zero",
+          "consultado_em": "2026-11-08"
+        },
+        {
+          "diz": "day trade R$ 2,90; swing R$ 4,90; FIIs isentos; taxa operacional 5,9%",
+          "url": "https://www.nordinvestimentos.com.br/blog/amp/corretora-xp/",
+          "consultado_em": "2026-11-08"
+        },
+        {
+          "diz": "ações digital R$ 0; mesa R$ 2,90 day e R$ 4,90 swing",
+          "url": "https://educacaofinanceirabrasil.com.br/artigos/melhores-corretoras-brasil",
+          "consultado_em": "2026-11-08"
+        }
+      ]
+    },
+    "custodia_xp": {
+      "valor": 0,
+      "fonte_status": "não confirmado em fonte oficial da XP; conferir extrato"
+    }
+  },
+  "ir": {
+    "regras": {
+      "acoes_swing": {
+        "aliquota": 0.15,
+        "isencao_vendas_mes_ate": 20000,
+        "irrf_sobre_venda": 5e-05
+      },
+      "acoes_day": {
+        "aliquota": 0.2,
+        "isencao_vendas_mes_ate": null,
+        "irrf_sobre_lucro": 0.01
+      },
+      "fii_ganho_capital": {
+        "aliquota": 0.2,
+        "isencao_vendas_mes_ate": null
+      },
+      "bdr_swing": {
+        "aliquota": 0.15,
+        "isencao_vendas_mes_ate": null
+      },
+      "bdr_day": {
+        "aliquota": 0.2,
+        "isencao_vendas_mes_ate": null
+      },
+      "opcoes_swing": {
+        "aliquota": 0.15,
+        "isencao_vendas_mes_ate": null
+      },
+      "opcoes_day": {
+        "aliquota": 0.2,
+        "isencao_vendas_mes_ate": null
+      }
+    },
+    "compensacao_prejuizo": "Só na mesma modalidade: day com day, comum com comum, FII com FII.",
+    "darf": {
+      "codigo": "6015",
+      "prazo": "último dia útil do mês seguinte",
+      "valor_minimo": 10.0
+    },
+    "status_legislativo": "MP 1.303/2025 (alíquota única de 17,5% e fim da isenção de R$ 20 mil) foi rejeitada; regras anteriores seguem em 2026.",
+    "fontes": [
+      {
+        "url": "https://www.awaketrader.com/pt/educacao/mp-1303-rejeitada-isencao-20-mil-2026",
+        "consultado_em": "2026-11-08"
+      },
+      {
+        "url": "https://investnews.com.br/financas/imposto-dedo-duro-malha-fina-ir-2026/amp/",
+        "consultado_em": "2026-11-08"
+      },
+      {
+        "url": "https://www.portaltributario.com.br/irpf/qual-e-a-aliquota-de-incidencia-do-ir-aplicavel-as-operacoes.htm",
+        "consultado_em": "2026-11-08"
+      }
+    ],
+    "pendencia": "Fonte primária da Receita (Perguntas e Respostas IRPF 2026) ainda não lida diretamente; tratamento de BDR diverge entre fontes secundárias. Reconfirmar antes de usar a apuração mensal."
+  },
+  "plataformas_xp": {
+    "app_xp": {
+      "custo_mensal": 0,
+      "so": [
+        "iOS",
+        "Android"
+      ]
+    },
+    "xp_trader": {
+      "custo_mensal": 0,
+      "so": [
+        "iOS",
+        "Android"
+      ]
+    },
+    "home_broker": {
+      "custo_mensal": 0,
+      "so": [
+        "web"
+      ],
+      "nota": "XP Unity é o novo home broker, em liberação gradual."
+    },
+    "metatrader5": {
+      "custo_mensal": 0,
+      "so": [
+        "Windows"
+      ]
+    },
+    "profit_trader_xp": {
+      "custo_mensal": 89.9,
+      "isencao": "corretagem mínima de R$ 100 ou 1 contrato com RLP",
+      "so": [
+        "Windows"
+      ]
+    },
+    "profit_pro": {
+      "custo_mensal": 160.0,
+      "isencao": "corretagem mínima de R$ 270 ou 10 contratos com RLP",
+      "so": [
+        "Windows"
+      ]
+    },
+    "profit_ultra": {
+      "custo_mensal": 299.9,
+      "so": [
+        "Windows"
+      ]
+    },
+    "fonte": {
+      "documento": "XP, Comparativo de Plataformas, atualizado em 23/10/2026",
+      "url": "https://web.xpi.com.br/xp/documentos/comparativo-de-plataformas",
+      "consultado_em": "2026-11-08"
+    },
+    "tipos_de_ordem": "Stop loss, stop gain e stop móvel existem na XP; nomes dos campos variam por plataforma. Confirmar na tela antes de seguir o ticket."
+  },
+  "fontes_de_dados": {
+    "cotahist_diario": {
+      "url_modelo": "https://bvmf.bmfbovespa.com.br/InstDados/SerHist/COTAHIST_D{DDMMAAAA}.ZIP",
+      "oficial": true,
+      "teste": {
+        "data": "2026-11-08",
+        "arquivo": "COTAHIST_D06112026.ZIP",
+        "http": 200,
+        "bytes": 469683,
+        "resultado": "PETR4 06/11/2026: abertura 46,00, máxima 46,11, mínima 44,96, último 45,36, 47.669.700 ações. Layout posicional lido sem erro."
+      },
+      "nota": "Arquivo anual 2026 tem cerca de 102 MB e foi atualizado em 06/11/2026 23:33 GMT; o diário fica disponível na noite do pregão."
+    },
+    "yahoo_chart": {
+      "url_modelo": "https://query2.finance.yahoo.com/v8/finance/chart/{TICKER}.SA?range=60d&interval=5m",
+      "oficial": false,
+      "teste": {
+        "data": "2026-11-08",
+        "http": 429,
+        "resultado": "Bloqueado a partir do ambiente de nuvem usado na verificação (IP de datacenter). Inconclusivo. Rodar 'relogio.py diagnostico' na máquina do usuário."
+      }
+    },
+    "brapi": {
+      "url_modelo": "https://brapi.dev/api/quote/{TICKER}?range=1mo&interval=5m",
+      "oficial": false,
+      "plano_gratuito": {
+        "requisicoes_mes": 15000,
+        "ativos_por_requisicao": 1,
+        "historico": "3 meses",
+        "atraso_min": 30,
+        "sem_token": [
+          "PETR4",
+          "VALE3",
+          "MGLU3",
+          "ITUB4"
+        ]
+      },
+      "fonte_planos": {
+        "url": "https://brapi.dev/faq/o-plano-gratuito-tem-limitacoes-importantes",
+        "consultado_em": "2026-11-08"
+      },
+      "teste": {
+        "data": "2026-11-08",
+        "http": 200,
+        "barras_diarias": "Batem exatamente com o COTAHIST (PETR4 06/11: fechamento 45,36, volume 47.669.700).",
+        "barras_5min": "Em 18 pregões (13/10 a 06/11/2026) a primeira barra foi 10:15, 10:20, 10:25 ou 11:00, nunca 10:00. A última foi sempre 16:55. Depois de 03/11, falta a hora de 17:00 a 17:55: em 06/11 a última barra fechou em 45,13 e o fechamento oficial foi 45,36.",
+        "barras_1min": "Mesmo padrão: 04/11 de 10:25 a 17:00; 06/11 de 10:19 a 17:00.",
+        "conclusao": "Intradiário gratuito não serve para a faixa de abertura 10:00 a 10:15 nem para o fim do pregão. Diário serve."
+      }
+    },
+    "cvm_ipe": {
+      "url_modelo": "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/IPE/DADOS/ipe_cia_aberta_{ANO}.zip",
+      "oficial": true,
+      "teste": {
+        "data": "2026-11-08",
+        "http": 200,
+        "arquivo_atualizado": "2026-11-08 07:00",
+        "ultima_entrega_no_arquivo": "2026-11-07",
+        "linhas_2026": 39173,
+        "campos": [
+          "CNPJ_Companhia",
+          "Nome_Companhia",
+          "Codigo_CVM",
+          "Data_Referencia",
+          "Categoria",
+          "Tipo",
+          "Especie",
+          "Assunto",
+          "Data_Entrega",
+          "Tipo_Apresentacao",
+          "Protocolo_Entrega",
+          "Versao",
+          "Link_Download"
+        ]
+      },
+      "nota": "Metadados dizem atualização semanal; o arquivo observado foi atualizado no dia, com entregas até D-1. Tratar como D+1, nunca tempo real."
+    },
+    "cvm_fca_valor_mobiliario": {
+      "url_modelo": "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/FCA/DADOS/fca_cia_aberta_{ANO}.zip",
+      "oficial": true,
+      "teste": {
+        "data": "2026-11-08",
+        "http": 200,
+        "resultado": "Arquivo fca_cia_aberta_valor_mobiliario_2026.csv mapeia Codigo_Negociacao para CNPJ (ex.: PETR4 para 33.000.167/0001-01)."
+      }
+    },
+    "fundos_net": {
+      "url_modelo": "https://fnet.bmfbovespa.com.br/fnet/publico/abrirGerenciadorDocumentosCVM?cnpjFundo={CNPJ}",
+      "oficial": true,
+      "nota": "Consulta pública sem login pela página. Sem API documentada; no MVP o pacote gera o link e o Claude lê a página."
+    },
+    "b3_sistemaswebb3": {
+      "teste": {
+        "data": "2026-11-08",
+        "http": 403
+      },
+      "nota": "Não usado."
+    },
+    "sec_edgar": {
+      "feed_modelo": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={CIK}&type=8-K&dateb=&owner=include&count=10&output=atom",
+      "tickers": "https://www.sec.gov/files/company_tickers.json",
+      "oficial": true,
+      "nota": "Só para BDR (8-K da empresa-mãe). A SEC exige User-Agent com nome e e-mail do usuário; o pacote não preenche.",
+      "fonte": {
+        "documento": "mesmos endpoints usados pelo day-trader-skill (trader-news)",
+        "url": "https://github.com/Jakeschincariol/day-trader-skill",
+        "consultado_em": "2026-11-08"
+      }
+    }
+  }
+}

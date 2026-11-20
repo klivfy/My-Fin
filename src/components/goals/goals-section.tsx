@@ -11,10 +11,10 @@ const monthYear = (iso: string) =>
   new Intl.DateTimeFormat("pt-BR", { month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(iso));
 
 const STATUS: Record<GoalView["status"], { label: string; className: string } | null> = {
-  DONE: { label: "Concluída", className: "bg-income-container text-income-on-container" },
-  ON_TRACK: { label: "No prazo", className: "bg-income-container text-income-on-container" },
-  AT_RISK: { label: "Prazo apertado", className: "bg-expense-container text-expense-on-container" },
-  NO_SURPLUS: { label: "Sem sobra", className: "bg-expense-container text-expense-on-container" },
+  DONE: { label: "Concluída", className: "text-income" },
+  ON_TRACK: { label: "No prazo", className: "text-income" },
+  AT_RISK: { label: "Prazo apertado", className: "text-expense" },
+  NO_SURPLUS: { label: "Sem sobra", className: "text-expense" },
   NO_DEADLINE: null,
 };
 
@@ -115,7 +115,7 @@ function GoalCard({
               {goal.name}
             </span>
             {status && (
-              <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium", status.className)}>
+              <span className={cn("shrink-0 text-xs font-medium", status.className)}>
                 {status.label}
               </span>
             )}
@@ -174,8 +174,8 @@ function GoalCard({
                 {ms.reached ? <CheckCircle2 className="size-3" /> : <Flag className="size-3" />}
                 {formatPercent(ms.fraction, 0)}
               </p>
-              <p className="text-[10px] tabular-nums text-on-surface-variant">{formatBRL(ms.amount)}</p>
-              <p className="text-[10px] text-on-surface-variant">
+              <p className="text-xs tabular-nums text-on-surface-variant">{formatBRL(ms.amount)}</p>
+              <p className="text-xs text-on-surface-variant">
                 {ms.reached ? "atingido" : ms.projectedDate ? monthYear(ms.projectedDate) : "—"}
               </p>
             </li>

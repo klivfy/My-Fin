@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { FormError } from "@/components/form-error";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -23,12 +24,14 @@ export function ReviewRow({
   const [categoryId, setCategoryId] = useState("");
   const [createRule, setCreateRule] = useState(false);
   const [rulePattern, setRulePattern] = useState(transaction.description);
+  const [error, setError] = useState<string | null>(null);
 
   const options = categories.filter((category) => category.type === transaction.type);
 
   function handleSave() {
+    setError(null);
     if (!categoryId) {
-      toast.error("Escolha uma categoria.");
+      setError("Escolha uma categoria.");
       return;
     }
     startTransition(async () => {
@@ -39,7 +42,7 @@ export function ReviewRow({
           rulePattern: createRule ? rulePattern : undefined,
         });
         if (!result.ok) {
-          toast.error(result.error);
+          setError(result.error);
           return;
         }
         const { appliedToOthers } = result.data;
@@ -49,7 +52,7 @@ export function ReviewRow({
             : "Categorizada.",
         );
       } catch {
-        toast.error("Erro ao categorizar.");
+        setError("Erro ao categorizar. Tente de novo.");
       }
     });
   }
@@ -100,6 +103,8 @@ export function ReviewRow({
           aria-label="Trecho da descrição para a regra"
         />
       )}
+
+      <FormError message={error} />
     </li>
   );
 }

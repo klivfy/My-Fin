@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { FormError } from "@/components/form-error";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -34,10 +35,12 @@ export function SettleInvoiceDialog({
   const [open, setOpen] = useState(false);
   const [payingAccountId, setPayingAccountId] = useState(payerAccounts[0]?.id ?? "");
   const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
   function handleSubmit() {
+    setError(null);
     if (!payingAccountId) {
-      toast.error("Selecione a conta pagadora.");
+      setError("Selecione a conta pagadora.");
       return;
     }
     startTransition(async () => {
@@ -45,14 +48,20 @@ export function SettleInvoiceDialog({
         await settleInvoice({ invoiceId, payingAccountId, paymentDate: new Date().toISOString() });
         toast.success("Fatura liquidada.");
         setOpen(false);
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erro ao liquidar fatura.");
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Erro ao liquidar fatura.");
       }
     });
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        setError(null);
+      }}
+    >
       <DialogTrigger render={trigger} />
       <DialogContent className="sm:max-w-xs">
         <DialogHeader>
@@ -79,6 +88,7 @@ export function SettleInvoiceDialog({
             </Select>
           </div>
         </div>
+        <FormError message={error} />
         <DialogFooter>
           <Button onClick={handleSubmit} disabled={pending}>
             {pending ? "Processando…" : "Confirmar pagamento"}

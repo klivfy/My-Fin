@@ -1,3 +1,5 @@
+@layer reset, theme, base, astryx-base, astryx-theme, components, utilities;
+
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";

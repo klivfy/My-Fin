@@ -7,7 +7,7 @@ const TONE_CLASS: Record<Exclude<MoneyTone, "auto">, string> = {
   income: "text-income",
   expense: "text-expense",
   transfer: "text-transfer",
-  neutral: "text-foreground",
+  neutral: "text-on-surface",
 };
 
 /**

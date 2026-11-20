@@ -8,6 +8,8 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { addGoalContribution, deleteGoal } from "@/actions/goals";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { FormError } from "@/components/form-error";
 import { GoalDialog, type GoalFormValues } from "@/components/goals/goal-dialog";
 
 /** Ações de uma meta: registrar aporte/retirada (sem conta vinculada), editar e excluir. */
@@ -22,18 +24,22 @@ export function GoalActions({
 }) {
   const [pending, startTransition] = useTransition();
 
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   function handleDelete() {
-    if (!window.confirm(`Excluir a meta "${goal.name}"? O dinheiro guardado não é afetado.`)) return;
+    setDeleteError(null);
     startTransition(async () => {
       try {
         const result = await deleteGoal({ id: goal.id });
         if (!result.ok) {
-          toast.error(result.error);
+          setDeleteError(result.error);
           return;
         }
+        setConfirmOpen(false);
         toast.success("Meta excluída.");
       } catch {
-        toast.error("Erro ao excluir.");
+        setDeleteError("Erro ao excluir. Tente de novo.");
       }
     });
   }
@@ -50,9 +56,19 @@ export function GoalActions({
           </Button>
         }
       />
-      <Button size="icon" variant="ghost" onClick={handleDelete} disabled={pending} aria-label={`Excluir ${goal.name}`}>
+      <Button size="icon" variant="ghost" onClick={() => { setDeleteError(null); setConfirmOpen(true); }} disabled={pending} aria-label={`Excluir ${goal.name}`}>
         <Trash2 className="size-4" />
       </Button>
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={`Excluir a meta "${goal.name}"?`}
+        description="O dinheiro guardado não é afetado."
+        confirmLabel="Excluir meta"
+        pending={pending}
+        error={deleteError}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }
@@ -62,20 +78,22 @@ function ContributionDialog({ goalId, suggested }: { goalId: string; suggested: 
   const [pending, startTransition] = useTransition();
   const [amount, setAmount] = useState("");
   const [withdraw, setWithdraw] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   function handleSubmit() {
+    setError(null);
     startTransition(async () => {
       try {
         const value = amount.trim();
         const result = await addGoalContribution({ id: goalId, amount: withdraw ? `-${value}` : value });
         if (!result.ok) {
-          toast.error(result.error);
+          setError(result.error);
           return;
         }
         toast.success(withdraw ? "Retirada registrada." : "Aporte registrado.");
         setOpen(false);
       } catch {
-        toast.error("Erro ao registrar.");
+        setError("Erro ao registrar. Tente de novo.");
       }
     });
   }
@@ -85,6 +103,7 @@ function ContributionDialog({ goalId, suggested }: { goalId: string; suggested: 
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
+        setError(null);
         if (next) {
           setWithdraw(false);
           setAmount(suggested > 0 ? suggested.toFixed(2).replace(".", ",") : "");
@@ -113,7 +132,7 @@ function ContributionDialog({ goalId, suggested }: { goalId: string; suggested: 
                 className={`rounded-lg border px-2 py-1.5 text-xs font-medium transition-colors ${
                   withdraw === option
                     ? "border-primary bg-primary text-primary-foreground"
-                    : "border-input text-muted-foreground hover:bg-accent"
+                    : "border-input text-on-surface-variant hover:bg-surface-container"
                 }`}
               >
                 {option ? "Retirada" : "Aporte"}
@@ -131,6 +150,7 @@ function ContributionDialog({ goalId, suggested }: { goalId: string; suggested: 
             />
           </div>
         </div>
+        <FormError message={error} />
         <DialogFooter>
           <Button onClick={handleSubmit} disabled={pending || !amount.trim()}>
             {pending ? "Salvando…" : "Registrar"}

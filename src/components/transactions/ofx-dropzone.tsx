@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition, type DragEvent } from "react";
 import { FileUp, Loader2, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
+import { FormError } from "@/components/form-error";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { importOfx, type ImportOfxResult } from "@/actions/import-ofx";
 import { cn } from "@/lib/utils";
@@ -19,15 +20,17 @@ export function OfxDropzone({ accounts }: { accounts: AccountOption[] }) {
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? "");
   const [pending, startTransition] = useTransition();
   const [lastResult, setLastResult] = useState<ImportOfxResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   function processFile(file: File) {
+    setError(null);
     if (!accountId) {
-      toast.error("Selecione a conta de destino antes de importar.");
+      setError("Selecione a conta de destino antes de importar.");
       return;
     }
     if (!file.name.toLowerCase().endsWith(".ofx")) {
-      toast.error("Envie um arquivo .ofx.");
+      setError("Envie um arquivo .ofx.");
       return;
     }
 
@@ -42,8 +45,9 @@ export function OfxDropzone({ accounts }: { accounts: AccountOption[] }) {
         toast.success(
           `${result.recordsInserted} nova(s) transação(ões) importada(s), ${result.recordsSkipped} já existiam.`,
         );
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Falha ao importar o arquivo OFX.");
+      } catch (e) {
+        setLastResult(null);
+        setError(e instanceof Error ? e.message : "Falha ao importar o arquivo OFX.");
       }
     });
   }
@@ -120,6 +124,8 @@ export function OfxDropzone({ accounts }: { accounts: AccountOption[] }) {
               }}
             />
           </div>
+
+          <FormError message={error} />
 
           {lastResult && (
             <div className="grid grid-cols-3 gap-2 text-center text-xs">

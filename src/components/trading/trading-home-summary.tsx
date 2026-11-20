@@ -14,7 +14,7 @@ export function TradingHomeSummaryCard({ summary }: { summary: TradingHomeSummar
   return (
     <section
       aria-labelledby="trading-mes"
-      className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-outline-variant bg-card p-5"
+      className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-outline-variant bg-surface-container-lowest p-5"
     >
       <div className="space-y-1">
         <h2 id="trading-mes" className="text-sm font-medium text-on-surface">

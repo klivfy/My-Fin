@@ -146,7 +146,7 @@ function NavGroups({ current, onNavigate }: { current?: string; onNavigate?: () 
 
 function tabClass(active: boolean) {
   return cn(
-    "flex min-h-14 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors duration-150",
+    "flex min-h-14 flex-col items-center justify-center gap-1 text-xs font-medium transition-colors duration-150",
     active ? "text-on-surface" : "text-on-surface-variant",
   );
 }

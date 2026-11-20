@@ -32,7 +32,7 @@ function LoginForm() {
     <form onSubmit={onSubmit} className="mx-auto flex w-full max-w-sm flex-col gap-4 p-8">
       <div className="space-y-1">
         <h1 className="text-xl font-semibold tracking-tight">My-Fin</h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-on-surface-variant">
           Informe o token de acesso configurado em <code>APP_ACCESS_TOKEN</code>.
         </p>
       </div>
@@ -56,7 +56,7 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <main className="flex min-h-full items-center justify-center">
-      <Suspense fallback={<p className="p-8 text-sm text-muted-foreground">Carregando…</p>}>
+      <Suspense fallback={<p className="p-8 text-sm text-on-surface-variant">Carregando…</p>}>
         <LoginForm />
       </Suspense>
     </main>

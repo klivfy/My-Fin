@@ -46,7 +46,7 @@ export default async function TradingJournalPage({
         </div>
       </div>
 
-      <section aria-labelledby="resumo" className="rounded-xl border border-outline-variant bg-card p-5">
+      <section aria-labelledby="resumo" className="rounded-xl border border-outline-variant bg-surface-container-lowest p-5">
         <h2 id="resumo" className="sr-only">
           Resumo do período
         </h2>

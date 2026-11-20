@@ -8,7 +8,7 @@ import type { DashboardData } from "@/lib/queries/dashboard";
  */
 export function KpiCards({ data }: { data: DashboardData }) {
   return (
-    <section aria-labelledby="resumo-financas" className="rounded-xl border border-outline-variant bg-card p-5">
+    <section aria-labelledby="resumo-financas" className="rounded-xl border border-outline-variant bg-surface-container-lowest p-5">
       <h2 id="resumo-financas" className="sr-only">
         Resumo do período
       </h2>

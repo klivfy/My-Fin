@@ -1,0 +1,57 @@
+{
+  "modeStrategy": "light-and-dark",
+  "families": [
+    {
+      "id": "accent",
+      "name": "Accent",
+      "seed": "#1b589e",
+      "anchors": [
+        {
+          "mode": "light",
+          "stop": 35,
+          "color": "#1b589e",
+          "policy": "exact"
+        }
+      ]
+    },
+    {
+      "id": "success",
+      "name": "Success",
+      "seed": "#006836",
+      "anchors": [
+        {
+          "mode": "light",
+          "stop": 35,
+          "color": "#006836",
+          "policy": "exact"
+        }
+      ]
+    },
+    {
+      "id": "warning",
+      "name": "Warning",
+      "seed": "#8a5600",
+      "anchors": [
+        {
+          "mode": "light",
+          "stop": 40,
+          "color": "#8a5600",
+          "policy": "exact"
+        }
+      ]
+    },
+    {
+      "id": "danger",
+      "name": "Danger",
+      "seed": "#b32228",
+      "anchors": [
+        {
+          "mode": "light",
+          "stop": 40,
+          "color": "#b32228",
+          "policy": "exact"
+        }
+      ]
+    }
+  ]
+}

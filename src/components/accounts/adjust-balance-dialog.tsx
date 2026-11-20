@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Decimal from "decimal.js";
 import { SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
+import { FormError } from "@/components/form-error";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,13 +23,15 @@ export function AdjustBalanceDialog({ accountId, currentBalance }: { accountId: 
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState(currentBalance);
   const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
   function handleSubmit() {
+    setError(null);
     let delta: Decimal;
     try {
       delta = new Decimal(value || "0").minus(new Decimal(currentBalance));
     } catch {
-      toast.error("Valor inválido.");
+      setError("Valor inválido.");
       return;
     }
     if (delta.isZero()) {
@@ -47,14 +50,20 @@ export function AdjustBalanceDialog({ accountId, currentBalance }: { accountId: 
         });
         toast.success("Saldo ajustado.");
         setOpen(false);
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erro ao ajustar saldo.");
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Erro ao ajustar saldo.");
       }
     });
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        setError(null);
+      }}
+    >
       <DialogTrigger
         render={
           <Button variant="ghost" size="icon" title="Ajustar saldo">
@@ -75,6 +84,7 @@ export function AdjustBalanceDialog({ accountId, currentBalance }: { accountId: 
             onChange={(e) => setValue(e.target.value)}
           />
         </div>
+        <FormError message={error} />
         <DialogFooter>
           <Button onClick={handleSubmit} disabled={pending}>
             {pending ? "Salvando…" : "Confirmar ajuste"}

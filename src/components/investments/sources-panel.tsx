@@ -36,7 +36,7 @@ function summary({ inserted, matched, skipped }: ImportResult): string {
  */
 export function SourcesPanel({ sources }: { sources: SourcesView }) {
   return (
-    <section aria-labelledby="fontes" className="rounded-xl border border-outline-variant bg-card">
+    <section aria-labelledby="fontes" className="rounded-xl border border-outline-variant bg-surface-container-lowest">
       <header className="border-b border-outline-variant px-5 py-4">
         <h2 id="fontes" className="text-sm font-medium text-on-surface">
           Fontes de dados

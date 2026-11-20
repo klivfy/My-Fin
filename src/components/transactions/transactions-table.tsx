@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArrowDown, ArrowUp, ArrowUpDown, Landmark, Trash2, Check, Tag } from "lucide-react";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import {
   Table,
   TableBody,
@@ -61,6 +62,8 @@ export function TransactionsTable({
   const searchParams = useSearchParams();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const sortBy = searchParams.get("sortBy") ?? "date";
   const sortDir = searchParams.get("sortDir") ?? "desc";
@@ -138,14 +141,15 @@ export function TransactionsTable({
 
   function deleteSelected() {
     const ids = Array.from(selected);
-    if (!confirm(`Excluir ${ids.length} transação(ões)? Esta ação não pode ser desfeita.`)) return;
+    setDeleteError(null);
     startTransition(async () => {
       try {
         await deleteTransactions({ ids });
         toast.success(`${ids.length} transação(ões) excluída(s).`);
         setSelected(new Set());
+        setConfirmOpen(false);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erro ao excluir.");
+        setDeleteError(error instanceof Error ? error.message : "Erro ao excluir. Tente de novo.");
       }
     });
   }
@@ -188,7 +192,7 @@ export function TransactionsTable({
                   </TableCell>
                   <TableCell>
                     <Avatar className="size-7">
-                      <AvatarFallback className="text-[10px]">
+                      <AvatarFallback className="text-xs">
                         <Landmark className="size-3.5" />
                       </AvatarFallback>
                     </Avatar>
@@ -221,7 +225,7 @@ export function TransactionsTable({
                       <PopoverContent className="w-48 p-1">
                         <button
                           onClick={() => applyCategory([row.id], null)}
-                          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-accent"
+                          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-surface-container"
                         >
                           <Tag className="size-3" /> Sem categoria
                         </button>
@@ -229,7 +233,7 @@ export function TransactionsTable({
                           <button
                             key={category.id}
                             onClick={() => applyCategory([row.id], category.id)}
-                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-accent"
+                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-surface-container"
                           >
                             {category.name}
                           </button>
@@ -238,7 +242,7 @@ export function TransactionsTable({
                     </Popover>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={row.isReconciled ? "default" : "outline"} className="text-[10px]">
+                    <Badge variant={row.isReconciled ? "default" : "outline"} className="text-xs">
                       {row.isReconciled ? "Conciliado" : "Pendente"}
                     </Badge>
                   </TableCell>
@@ -272,7 +276,7 @@ export function TransactionsTable({
                 <button
                   key={category.id}
                   onClick={() => applyCategory(Array.from(selected), category.id)}
-                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-accent"
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-surface-container"
                 >
                   {category.name}
                 </button>
@@ -286,13 +290,23 @@ export function TransactionsTable({
             variant="ghost"
             size="sm"
             className="gap-1 text-expense hover:text-expense"
-            onClick={deleteSelected}
+            onClick={() => { setDeleteError(null); setConfirmOpen(true); }}
             disabled={pending}
           >
             <Trash2 className="size-3.5" /> Excluir
           </Button>
         </div>
       )}
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={`Excluir ${selected.size} transação(ões)?`}
+        description="Esta ação não pode ser desfeita."
+        confirmLabel="Excluir"
+        pending={pending}
+        error={deleteError}
+        onConfirm={deleteSelected}
+      />
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { FormError } from "@/components/form-error";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -32,6 +33,7 @@ export function GoalDialog({
 }) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   const [values, setValues] = useState(initial);
   const isEdit = Boolean(initial.id);
 
@@ -39,6 +41,7 @@ export function GoalDialog({
   const options = accounts.filter((a) => !a.linkedGoalId || a.linkedGoalId === initial.id);
 
   function handleSubmit() {
+    setError(null);
     startTransition(async () => {
       try {
         const payload = {
@@ -49,13 +52,13 @@ export function GoalDialog({
         };
         const result = initial.id ? await updateGoal({ ...payload, id: initial.id }) : await createGoal(payload);
         if (!result.ok) {
-          toast.error(result.error);
+          setError(result.error);
           return;
         }
         toast.success(isEdit ? "Meta atualizada." : "Meta criada.");
         setOpen(false);
       } catch {
-        toast.error("Erro ao salvar a meta.");
+        setError("Erro ao salvar a meta. Tente de novo.");
       }
     });
   }
@@ -65,6 +68,7 @@ export function GoalDialog({
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
+        setError(null);
         if (next) setValues(initial);
       }}
     >
@@ -131,6 +135,7 @@ export function GoalDialog({
           </div>
         </div>
 
+        <FormError message={error} />
         <DialogFooter>
           <Button onClick={handleSubmit} disabled={pending}>
             {pending ? "Salvando…" : isEdit ? "Salvar" : "Criar meta"}

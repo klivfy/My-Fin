@@ -1,0 +1,34 @@
+{
+  "name": "myfin",
+  "like": "neutral",
+  "mode": "light-only",
+  "settings": [
+    {
+      "thing": "accent",
+      "value": "#1b589e",
+      "source": "dial"
+    },
+    {
+      "thing": "danger",
+      "value": "#b32228",
+      "source": "dial"
+    },
+    {
+      "thing": "success",
+      "value": "#006836",
+      "source": "dial"
+    },
+    {
+      "thing": "warning",
+      "value": "#8a5600",
+      "source": "dial"
+    },
+    {
+      "thing": "corners",
+      "value": "large",
+      "source": "dial"
+    }
+  ],
+  "lifted": [],
+  "palette": "45df199a738f0c5fc70eb81f236e4ab0805a7572504ceb4d534dc7dec973e5f9"
+}

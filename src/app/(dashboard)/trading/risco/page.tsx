@@ -69,7 +69,7 @@ export default async function TradingRiskPage({ searchParams }: { searchParams: 
         </div>
       </section>
 
-      <section aria-labelledby="limites" className="rounded-xl border border-outline-variant bg-card">
+      <section aria-labelledby="limites" className="rounded-xl border border-outline-variant bg-surface-container-lowest">
         <h2 id="limites" className="border-b border-outline-variant px-5 py-3 text-sm font-medium text-on-surface">
           Limites do perfil
         </h2>

@@ -10,7 +10,7 @@ export default function InvestmentsLoading() {
       </div>
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-x-6 gap-y-5 rounded-xl border border-outline-variant bg-card p-5 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-5 rounded-xl border border-outline-variant bg-surface-container-lowest p-5 sm:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="space-y-2">
                 <Skeleton className="h-4 w-28" />
@@ -20,14 +20,14 @@ export default function InvestmentsLoading() {
           </div>
           <div className="space-y-2">
             <Skeleton className="h-4 w-28" />
-            <div className="space-y-3 rounded-xl border border-outline-variant bg-card p-4">
+            <div className="space-y-3 rounded-xl border border-outline-variant bg-surface-container-lowest p-4">
               {Array.from({ length: 5 }).map((_, i) => (
                 <Skeleton key={i} className="h-5 w-full" />
               ))}
             </div>
           </div>
         </div>
-        <div className="space-y-4 rounded-xl border border-outline-variant bg-card p-5">
+        <div className="space-y-4 rounded-xl border border-outline-variant bg-surface-container-lowest p-5">
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="space-y-2">
               <Skeleton className="h-4 w-40" />

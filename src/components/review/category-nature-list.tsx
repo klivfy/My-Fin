@@ -62,7 +62,7 @@ function NatureRow({ category }: { category: ReviewCategory }) {
               "rounded-lg border px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50",
               category.nature === option.value
                 ? "border-primary bg-primary text-primary-foreground"
-                : "border-input text-muted-foreground hover:bg-accent",
+                : "border-input text-on-surface-variant hover:bg-surface-container",
             )}
           >
             {option.label}

@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  // Equivale a --background (oklch(0.985 0.002 255)) em globals.css; metadado não lê CSS.
+  // ui-check-ignore: metadado não lê CSS; equivale a --background (oklch(0.985 0.002 255)) em globals.css.
   themeColor: "#f7f8fa",
 };
 

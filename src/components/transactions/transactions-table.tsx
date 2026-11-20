@@ -225,7 +225,7 @@ export function TransactionsTable({
                       <PopoverContent className="w-48 p-1">
                         <button
                           onClick={() => applyCategory([row.id], null)}
-                          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-accent"
+                          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-surface-container"
                         >
                           <Tag className="size-3" /> Sem categoria
                         </button>
@@ -233,7 +233,7 @@ export function TransactionsTable({
                           <button
                             key={category.id}
                             onClick={() => applyCategory([row.id], category.id)}
-                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-accent"
+                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-surface-container"
                           >
                             {category.name}
                           </button>
@@ -276,7 +276,7 @@ export function TransactionsTable({
                 <button
                   key={category.id}
                   onClick={() => applyCategory(Array.from(selected), category.id)}
-                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-accent"
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-surface-container"
                 >
                   {category.name}
                 </button>

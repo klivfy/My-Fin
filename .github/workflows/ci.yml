@@ -41,6 +41,9 @@ jobs:
 
       - run: npm run typecheck
 
+      - name: Regras de interface (DESIGN.md)
+        run: npm run check:ui
+
       - run: npm test
 
       - run: npm run build

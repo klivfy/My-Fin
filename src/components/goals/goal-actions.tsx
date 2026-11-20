@@ -128,7 +128,7 @@ function ContributionDialog({ goalId, suggested }: { goalId: string; suggested: 
                 className={`rounded-lg border px-2 py-1.5 text-xs font-medium transition-colors ${
                   withdraw === option
                     ? "border-primary bg-primary text-primary-foreground"
-                    : "border-input text-muted-foreground hover:bg-accent"
+                    : "border-input text-on-surface-variant hover:bg-surface-container"
                 }`}
               >
                 {option ? "Retirada" : "Aporte"}

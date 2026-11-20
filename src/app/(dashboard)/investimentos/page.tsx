@@ -48,7 +48,7 @@ export default async function InvestmentsPage() {
         ) : (
           <section
             aria-labelledby="resumo"
-            className="rounded-xl border border-outline-variant bg-card p-5 lg:col-start-1"
+            className="rounded-xl border border-outline-variant bg-surface-container-lowest p-5 lg:col-start-1"
           >
             <h2 id="resumo" className="sr-only">
               Resumo da carteira
@@ -172,7 +172,7 @@ function TableFrame({
   return (
     <section className="space-y-2">
       <h2 className="text-sm font-medium text-on-surface">{title}</h2>
-      <div className="overflow-x-auto rounded-xl border border-outline-variant bg-card">
+      <div className="overflow-x-auto rounded-xl border border-outline-variant bg-surface-container-lowest">
         <table className={`w-full text-sm ${minWidth}`}>
           <caption className="sr-only">{caption}</caption>
           {children}

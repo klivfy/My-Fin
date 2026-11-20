@@ -16,7 +16,7 @@ export function CategoryBars({ data }: { data: DashboardData["categoryBreakdown"
   const restTotal = rest.reduce((sum, item) => sum + item.total, 0);
 
   return (
-    <section aria-labelledby="gastos-categoria" className="rounded-xl border border-outline-variant bg-card p-5">
+    <section aria-labelledby="gastos-categoria" className="rounded-xl border border-outline-variant bg-surface-container-lowest p-5">
       <h2 id="gastos-categoria" className="text-sm font-medium text-on-surface">
         Despesas por categoria (R$)
       </h2>

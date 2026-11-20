@@ -17,7 +17,7 @@ export function formatR(value: number): string {
 /** Operações do diário. Em telas estreitas a tabela rola na horizontal dentro do próprio quadro. */
 export function JournalTable({ rows }: { rows: TradeRow[] }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-outline-variant bg-card">
+    <div className="overflow-x-auto rounded-xl border border-outline-variant bg-surface-container-lowest">
       <table className="w-full min-w-[640px] text-sm">
         <caption className="sr-only">Operações do diário no período</caption>
         <thead>

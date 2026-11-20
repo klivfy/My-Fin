@@ -4,9 +4,11 @@ import { DismissButton, RestoreButton } from "@/components/insights/dismiss-butt
 import type { NextSteps } from "@/lib/queries/insights";
 
 /**
- * "Próximos passos": até 3 sugestões vindas do retrato financeiro, na ordem da
- * fila (reserva, dívida cara, reserva completa, metas, livre). Lista de linhas,
- * não de cartões: cada uma tem o porquê escrito e a tela onde se age.
+ * "Próximos passos": até 3 sugestões vindas do retrato financeiro. Primeiro o
+ * que está vazando (fatura vencida, trading com dívida cara e prejuízo), depois
+ * a fila da sobra (reserva, dívida cara, reserva completa, metas, livre) com os
+ * cortes encaixados, e por fim os avisos de contexto. Lista de linhas, não de
+ * cartões: cada uma tem o porquê escrito e a tela onde se age.
  */
 export function NextStepsPanel({ data }: { data: NextSteps }) {
   if (data.suggestions.length === 0 && data.dismissedCount === 0) return null;
@@ -52,7 +54,7 @@ export function NextStepsPanel({ data }: { data: NextSteps }) {
       )}
 
       <p className="px-5 pb-4 pt-2 text-xs text-on-surface-variant">
-        Sugestões educativas calculadas com os seus números, na ordem da fila. Não indicam ativos nem substituem
+        Sugestões educativas calculadas com os seus números, em ordem de prioridade. Não indicam ativos nem substituem
         aconselhamento financeiro.
       </p>
     </section>

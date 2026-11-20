@@ -13,6 +13,10 @@ import {
   type PotKind,
 } from "@/lib/financial-engine/pots";
 
+/** Contas onde o dinheiro guardado fica. Transferir para elas é aportar. */
+const SAVING_ACCOUNT_TYPES = ["SAVINGS", "INVESTMENT"] as const;
+const TRANSFER_ROW_NAME = "Aportes por transferência";
+
 export interface PotLineView {
   pot: Pot;
   label: string;
@@ -61,7 +65,7 @@ export async function getPercents(): Promise<Percents> {
  * (contas ativas, só INCOME/EXPENSE; transferências e ajustes não contam).
  */
 export async function getPotsView(range: PeriodRange, entrada: number | null): Promise<PotsView> {
-  const [percents, transactions, expenseCategories] = await Promise.all([
+  const [percents, transactions, expenseCategories, savedTransfers] = await Promise.all([
     getPercents(),
     prisma.transaction.findMany({
       where: {
@@ -79,6 +83,15 @@ export async function getPotsView(range: PeriodRange, entrada: number | null): P
       where: { type: "EXPENSE" },
       select: { nature: true, pot: true },
     }),
+    // Aporte por transferência (conta corrente para poupança ou corretora) também é dinheiro guardado.
+    prisma.transfer.aggregate({
+      where: {
+        date: { gte: range.from, lte: range.to },
+        destinationAccount: { isActive: true, type: { in: [...SAVING_ACCOUNT_TYPES] } },
+        sourceAccount: { isActive: true, type: { notIn: [...SAVING_ACCOUNT_TYPES] } },
+      },
+      _sum: { amount: true },
+    }),
   ]);
 
   let income = new Decimal(0);
@@ -95,6 +108,11 @@ export async function getPotsView(range: PeriodRange, entrada: number | null): P
     const row = spendByKey.get(key) ?? { pot, name, spent: new Decimal(0) };
     row.spent = row.spent.plus(amount.abs());
     spendByKey.set(key, row);
+  }
+
+  const transferred = new Decimal(savedTransfers._sum.amount?.toString() ?? "0");
+  if (transferred.gt(0)) {
+    spendByKey.set(`LIBERDADE:${TRANSFER_ROW_NAME}`, { pot: "LIBERDADE", name: TRANSFER_ROW_NAME, spent: transferred });
   }
 
   const rows = [...spendByKey.values()];

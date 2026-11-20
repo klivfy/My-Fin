@@ -60,6 +60,12 @@ export function BudgetCard({ budget }: { budget: BudgetView }) {
             <>
               cabem <span className="font-medium text-on-surface tabular-nums">{formatBRL(budget.perDayLeft)}/dia</span>{" "}
               {budget.daysLeft === 1 ? "hoje" : `nos ${budget.daysLeft} dias que faltam`}
+              {budget.pendingBills > 0 && (
+                <>
+                  , depois de reservar{" "}
+                  <span className="tabular-nums">{formatBRL(budget.pendingBills)}</span> em contas a vencer
+                </>
+              )}
             </>
           )}
         </p>

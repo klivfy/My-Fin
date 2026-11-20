@@ -11,8 +11,9 @@ import Decimal from "decimal.js";
  * - Potes de gasto (Necessidades, Instrução, Doações, Diversão): "usado" é o
  *   que saiu das categorias do pote, e a meta é um teto.
  * - Potes de guardar (Liberdade financeira, Longo prazo): "usado" é o que foi
- *   aportado (categorias de aporte), e a meta é um piso. Aporte feito por
- *   transferência entre contas não entra: só lançamento categorizado.
+ *   aportado, e a meta é um piso. Conta como aporte o lançamento categorizado
+ *   em pote de guardar e a transferência de conta corrente para poupança ou
+ *   corretora (entra em Liberdade financeira; ver `getPotsView`).
  * - Os percentuais são do método, mas editáveis: quem ganha pouco pode não
  *   ter 50% suficiente para necessidades (ver `recommendSplit` em budget-rule).
  */

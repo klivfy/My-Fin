@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { FileUp, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { FormError } from "@/components/form-error";
 import { Button } from "@/components/ui/button";
 import { importDiario } from "@/actions/trading";
 
@@ -14,18 +15,28 @@ export function DiarioImport({ variant = "outline" }: { variant?: "outline" | "d
   const inputRef = useRef<HTMLInputElement>(null);
   const [pending, startTransition] = useTransition();
   const [status, setStatus] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   function onFile(file: File | undefined) {
     if (!file) return;
     const formData = new FormData();
     formData.set("file", file);
     setStatus("Importando o diário…");
+    setError(null);
     startTransition(async () => {
-      const result = await importDiario(formData);
+      let result: Awaited<ReturnType<typeof importDiario>>;
+      try {
+        result = await importDiario(formData);
+      } catch {
+        if (inputRef.current) inputRef.current.value = "";
+        setStatus("");
+        setError("Erro ao importar o diário. Tente de novo.");
+        return;
+      }
       if (inputRef.current) inputRef.current.value = "";
       if (!result.ok) {
-        setStatus(result.error);
-        toast.error(result.error);
+        setStatus("");
+        setError(result.error);
         return;
       }
       const { inserted, skipped } = result.data;
@@ -60,6 +71,7 @@ export function DiarioImport({ variant = "outline" }: { variant?: "outline" | "d
         {pending ? <Loader2 className="animate-spin" aria-hidden /> : <FileUp aria-hidden />}
         Importar diario.csv
       </Button>
+      <FormError message={error} />
       <span role="status" aria-live="polite" className="sr-only">
         {status}
       </span>

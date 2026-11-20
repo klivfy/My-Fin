@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
+import { FormError } from "@/components/form-error";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -42,6 +43,7 @@ export function NewTransactionDialog({
 }) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
   const [type, setType] = useState<"INCOME" | "EXPENSE" | "ADJUSTMENT">("EXPENSE");
   const [accountId, setAccountId] = useState<string>(accounts[0]?.id ?? "");
@@ -62,8 +64,9 @@ export function NewTransactionDialog({
   }
 
   function handleSubmit() {
+    setError(null);
     if (!accountId || !amount || !description.trim()) {
-      toast.error("Preencha conta, valor e descrição.");
+      setError("Preencha conta, valor e descrição.");
       return;
     }
 
@@ -80,8 +83,8 @@ export function NewTransactionDialog({
         toast.success("Transação criada.");
         setOpen(false);
         resetForm();
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erro ao criar transação.");
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Erro ao criar transação.");
       }
     });
   }
@@ -91,6 +94,7 @@ export function NewTransactionDialog({
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
+        setError(null);
         if (!next) resetForm();
       }}
     >
@@ -190,6 +194,7 @@ export function NewTransactionDialog({
           )}
         </div>
 
+        <FormError message={error} />
         <DialogFooter>
           <Button onClick={handleSubmit} disabled={pending}>
             {pending ? "Salvando…" : "Salvar transação"}

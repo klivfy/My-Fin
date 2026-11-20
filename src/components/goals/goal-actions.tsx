@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { addGoalContribution, deleteGoal } from "@/actions/goals";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { FormError } from "@/components/form-error";
 import { GoalDialog, type GoalFormValues } from "@/components/goals/goal-dialog";
 
 /** Ações de uma meta: registrar aporte/retirada (sem conta vinculada), editar e excluir. */
@@ -77,20 +78,22 @@ function ContributionDialog({ goalId, suggested }: { goalId: string; suggested: 
   const [pending, startTransition] = useTransition();
   const [amount, setAmount] = useState("");
   const [withdraw, setWithdraw] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   function handleSubmit() {
+    setError(null);
     startTransition(async () => {
       try {
         const value = amount.trim();
         const result = await addGoalContribution({ id: goalId, amount: withdraw ? `-${value}` : value });
         if (!result.ok) {
-          toast.error(result.error);
+          setError(result.error);
           return;
         }
         toast.success(withdraw ? "Retirada registrada." : "Aporte registrado.");
         setOpen(false);
       } catch {
-        toast.error("Erro ao registrar.");
+        setError("Erro ao registrar. Tente de novo.");
       }
     });
   }
@@ -100,6 +103,7 @@ function ContributionDialog({ goalId, suggested }: { goalId: string; suggested: 
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
+        setError(null);
         if (next) {
           setWithdraw(false);
           setAmount(suggested > 0 ? suggested.toFixed(2).replace(".", ",") : "");
@@ -146,6 +150,7 @@ function ContributionDialog({ goalId, suggested }: { goalId: string; suggested: 
             />
           </div>
         </div>
+        <FormError message={error} />
         <DialogFooter>
           <Button onClick={handleSubmit} disabled={pending || !amount.trim()}>
             {pending ? "Salvando…" : "Registrar"}

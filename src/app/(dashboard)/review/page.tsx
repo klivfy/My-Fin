@@ -40,7 +40,7 @@ export default async function ReviewPage() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Natureza das despesas (50/30/20)</CardTitle>
+            <CardTitle className="text-sm font-medium">Natureza (50/30/20) e pote das despesas</CardTitle>
           </CardHeader>
           <CardContent>
             <CategoryNatureList categories={categories} />

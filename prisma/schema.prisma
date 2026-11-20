@@ -60,6 +60,18 @@ enum CategoryNature {
   SAVINGS
 }
 
+/// Os 6 potes do salário (Eker): onde cada categoria de despesa "mora" na visão
+/// por potes. Opcional: sem pote, vale a natureza (NEED = Necessidades,
+/// WANT = Diversão, SAVINGS = Liberdade financeira).
+enum Pot {
+  NECESSIDADES
+  LIBERDADE
+  LONGO_PRAZO
+  INSTRUCAO
+  DOACOES
+  DIVERSAO
+}
+
 /// Quem atribuiu a categoria de uma transação.
 enum CategorizationSource {
   MANUAL
@@ -142,6 +154,9 @@ model Category {
 
   /// Necessidade/Desejo/Poupança (50/30/20). Só faz sentido em EXPENSE.
   nature CategoryNature?
+
+  /// Pote dos 6 potes. Só faz sentido em EXPENSE; null = deriva da natureza.
+  pot Pot?
 
   parentId String?
   parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
@@ -226,6 +241,22 @@ model Debt {
   updatedAt DateTime @updatedAt
 
   @@map("debts")
+}
+
+// ----------------------------------------------------------------------------
+// PotAllocation
+// ----------------------------------------------------------------------------
+
+/// Percentual de cada pote sobre a entrada. Uma linha por pote; sem linhas,
+/// vale o padrão 50/10/10/10/10/10 (src/lib/financial-engine/pots.ts). A soma
+/// é validada na Server Action (100%).
+model PotAllocation {
+  pot     Pot     @id
+  percent Decimal @db.Decimal(5, 2)
+
+  updatedAt DateTime @updatedAt
+
+  @@map("pot_allocations")
 }
 
 // ----------------------------------------------------------------------------

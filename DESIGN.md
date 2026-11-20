@@ -66,3 +66,10 @@ Mesmo mundo do resto do app (modo Operar, tema claro, um acento). Regras própri
 * Extra mensal fica na URL (`?extra=`); o atalho "Usar a sobra real" usa a mesma sobra das metas de poupança e avisa para não contar duas vezes.
 * "Paguei 1" desconta uma parcela com confirmação; a última quita e tira a dívida do plano.
 * Tabelas com `relative` na moldura de rolagem: texto `sr-only` dentro da tabela não pode vazar a largura da página no celular.
+
+## 6 potes (em Orçamentos)
+
+* Os potes são uma **lente sobre as despesas já categorizadas**, não uma segunda contabilidade. Cada categoria de despesa mora num pote (seletor em Revisar); sem escolha, vale a natureza do 50/30/20 (Necessidade = Necessidades, Desejo = Diversão, Poupança = Liberdade financeira). Despesa sem pote e sem natureza aparece como "sem pote", nunca é chutada para um pote.
+* Potes de gasto têm teto ("ainda cabem" ou "passou"); potes de guardar têm piso ("faltam R$ X para guardar"). Alerta sempre com ícone e texto.
+* Diversão é teto, não obrigação de gastar. A tela não empurra o usuário a "zerar" o pote.
+* Percentuais editáveis (padrão 50/10/10/10/10/10), soma exata de 100% validada no cliente e no servidor. A divisão de uma entrada avulsa (`?entrada=`) usa o método do maior resto e fecha centavo por centavo.

@@ -2,7 +2,7 @@ import { PiggyBank } from "lucide-react";
 import { resolvePeriodRange } from "@/lib/period";
 import { getBudgetViews } from "@/lib/queries/budgets";
 import { getBudgetRuleView } from "@/lib/queries/budget-rule";
-import { getGoalsData } from "@/lib/queries/goals";
+import { getFinancialSnapshot } from "@/lib/queries/snapshot";
 import { getPotsView, resolveEntrada } from "@/lib/queries/pots";
 import { BudgetCard } from "@/components/budgets/budget-card";
 import { BudgetRuleCard } from "@/components/budgets/budget-rule-card";
@@ -17,10 +17,10 @@ export default async function BudgetsPage({
 }) {
   const { period, entrada } = await searchParams;
   const range = resolvePeriodRange(period);
-  const [ruleView, potsView, goals, budgets] = await Promise.all([
+  const [ruleView, potsView, snapshot, budgets] = await Promise.all([
     getBudgetRuleView(range),
     getPotsView(range, resolveEntrada(entrada)),
-    getGoalsData(),
+    getFinancialSnapshot(),
     getBudgetViews(),
   ]);
 
@@ -37,7 +37,17 @@ export default async function BudgetsPage({
 
       <PotsCard view={potsView} entradaParam={entrada ?? ""} />
 
-      <GoalsSection data={goals} />
+      <GoalsSection
+        data={snapshot.goals}
+        split={
+          snapshot.allocation && {
+            reserve: snapshot.allocation.totals.reserve.toNumber(),
+            debts: snapshot.allocation.totals.debts.toNumber(),
+            goals: snapshot.allocation.totals.goals.toNumber(),
+            free: snapshot.allocation.totals.free.toNumber(),
+          }
+        }
+      />
 
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-on-surface">Tetos por categoria · mês corrente</h2>

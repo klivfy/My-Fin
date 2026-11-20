@@ -1,7 +1,7 @@
 import Decimal from "decimal.js";
 import type { Debt } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getGoalsData } from "@/lib/queries/goals";
+import { getFinancialSnapshot } from "@/lib/queries/snapshot";
 import {
   comparePayoff,
   presentValue,
@@ -48,7 +48,7 @@ export interface PlanView {
 export interface DebtsData {
   debts: DebtView[];
   extra: number;
-  /** Sugestão de extra pela sobra real (mesma regra das metas de poupança); null sem histórico. */
+  /** Fatia da sobra que a fila única destina às dívidas (ver alocador); null sem sobra ou sem destino para dívidas. */
   surplusContribution: number | null;
   monthlyBudget: number;
   comparison: {
@@ -96,9 +96,9 @@ function planView(plan: PayoffPlan, now: Date): PlanView {
 }
 
 export async function getDebtsData(extra: number, now = new Date()): Promise<DebtsData> {
-  const [rows, goals] = await Promise.all([
+  const [rows, snapshot] = await Promise.all([
     prisma.debt.findMany({ orderBy: { createdAt: "asc" } }),
-    getGoalsData(now),
+    getFinancialSnapshot(now),
   ]);
 
   const inputs = rows.map(toInput);
@@ -118,7 +118,8 @@ export async function getDebtsData(extra: number, now = new Date()): Promise<Deb
   return {
     debts,
     extra,
-    surplusContribution: goals.surplus && goals.surplus.contribution > 0 ? goals.surplus.contribution : null,
+    surplusContribution:
+      snapshot.allocation && snapshot.allocation.totals.debts.gt(0) ? snapshot.allocation.totals.debts.toNumber() : null,
     monthlyBudget: debts.reduce((a, d) => a + d.installment, 0) + extra,
     comparison: c && {
       balanceToday: c.balanceToday.toNumber(),

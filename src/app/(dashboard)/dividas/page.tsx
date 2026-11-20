@@ -172,17 +172,17 @@ export default async function DebtsPage({
               scroll={false}
               className="inline-flex min-h-10 items-center rounded-lg px-3 text-sm font-medium text-primary hover:bg-secondary"
             >
-              Usar a sobra real ({formatBRL(data.surplusContribution)}/mês)
+              Usar a fatia das dívidas na sobra ({formatBRL(data.surplusContribution)}/mês)
             </Link>
           )}
         </form>
         {data.surplusContribution !== null && (
           <p className="text-xs text-on-surface-variant">
-            A sobra real é a mesma das{" "}
-            <Link href="/budgets" className="font-medium text-primary underline-offset-4 hover:underline">
-              metas de poupança
+            É a parte da sobra que a fila única destina às dívidas depois da reserva mínima (veja os{" "}
+            <Link href="/" className="font-medium text-primary underline-offset-4 hover:underline">
+              próximos passos
             </Link>
-            : se usar aqui, não conte com ela lá também.
+            ). As metas de poupança recebem só o que sobra depois dela, então o valor não conta duas vezes.
           </p>
         )}
       </section>

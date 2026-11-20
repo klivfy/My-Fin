@@ -260,6 +260,19 @@ model PotAllocation {
 }
 
 // ----------------------------------------------------------------------------
+// InsightDismissal
+// ----------------------------------------------------------------------------
+
+/// Sugestão do painel "Próximos passos" que o usuário dispensou. O id é a
+/// chave estável da sugestão (src/lib/insights/suggestions.ts), não um uuid.
+model InsightDismissal {
+  id        String   @id
+  createdAt DateTime @default(now())
+
+  @@map("insight_dismissals")
+}
+
+// ----------------------------------------------------------------------------
 // RecurrenceIgnore
 // ----------------------------------------------------------------------------
 

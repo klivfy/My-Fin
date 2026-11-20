@@ -73,3 +73,11 @@ Mesmo mundo do resto do app (modo Operar, tema claro, um acento). Regras própri
 * Potes de gasto têm teto ("ainda cabem" ou "passou"); potes de guardar têm piso ("faltam R$ X para guardar"). Alerta sempre com ícone e texto.
 * Diversão é teto, não obrigação de gastar. A tela não empurra o usuário a "zerar" o pote.
 * Percentuais editáveis (padrão 50/10/10/10/10/10), soma exata de 100% validada no cliente e no servidor. A divisão de uma entrada avulsa (`?entrada=`) usa o método do maior resto e fecha centavo por centavo.
+
+## Próximos passos (Visão geral)
+
+* Painel de **até 3 sugestões**, em lista de linhas (não cartões), logo abaixo do título. Cada linha tem o título com o valor em R$/mês, o **porquê escrito** com os números que o justificam, a tela onde agir e "Dispensar". Dispensada não volta até "Mostrar de novo".
+* A ordem é a **fila única da sobra** (`src/lib/insights/allocator.ts`), e a ordem é o argumento: reserva mínima (1 mês de custo essencial), dívidas acima de 1% a.m. pela avalanche, reserva completa (6 meses), dívidas baratas, metas, livre. A soma dos passos fecha exatamente o aporte sugerido (80% da sobra média).
+* Dado ruim vence tudo: abaixo de 2 meses completos ou de 80% do gasto categorizado, a única sugestão é consertar o dado, sem valor.
+* Investimento só por prioridade e classe (renda fixa para prazo curto, renda variável para o que fica anos parado). Nunca cita ativo, ticker ou rentabilidade; teste automático trava isso.
+* Metas e Dívidas leem a fatia da fila (Dívidas usa a fatia das dívidas como extra sugerido, Metas mostra o split). Nenhuma tela sugere a sobra inteira por conta própria.

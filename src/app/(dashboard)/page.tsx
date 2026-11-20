@@ -3,6 +3,8 @@ import { resolvePeriodRange } from "@/lib/period";
 import { getDashboardData } from "@/lib/queries/dashboard";
 import { getTradingHomeSummary } from "@/lib/queries/trading";
 import { getDebtHomeSummary } from "@/lib/queries/debts";
+import { getNextSteps } from "@/lib/queries/insights";
+import { NextStepsPanel } from "@/components/insights/next-steps";
 import { KpiCards } from "@/components/dashboard/kpi-cards";
 import { CashFlowChart } from "@/components/dashboard/cash-flow-chart";
 import { CategoryBars } from "@/components/dashboard/category-bars";
@@ -17,10 +19,11 @@ export default async function OverviewPage({
 }) {
   const { period } = await searchParams;
   const range = resolvePeriodRange(period);
-  const [data, trading, debts] = await Promise.all([
+  const [data, trading, debts, nextSteps] = await Promise.all([
     getDashboardData(range),
     getTradingHomeSummary(),
     getDebtHomeSummary(),
+    getNextSteps(),
   ]);
 
   return (
@@ -29,6 +32,8 @@ export default async function OverviewPage({
         <h1 className="text-xl font-semibold tracking-tight text-on-surface">Visão geral</h1>
         <p className="text-sm text-on-surface-variant">{range.label}</p>
       </div>
+
+      <NextStepsPanel data={nextSteps} />
 
       {data.hasAnyTransaction ? (
         <>

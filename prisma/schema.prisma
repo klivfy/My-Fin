@@ -60,6 +60,18 @@ enum CategoryNature {
   SAVINGS
 }
 
+/// Os 6 potes do salário (Eker): onde cada categoria de despesa "mora" na visão
+/// por potes. Opcional: sem pote, vale a natureza (NEED = Necessidades,
+/// WANT = Diversão, SAVINGS = Liberdade financeira).
+enum Pot {
+  NECESSIDADES
+  LIBERDADE
+  LONGO_PRAZO
+  INSTRUCAO
+  DOACOES
+  DIVERSAO
+}
+
 /// Quem atribuiu a categoria de uma transação.
 enum CategorizationSource {
   MANUAL
@@ -143,6 +155,9 @@ model Category {
   /// Necessidade/Desejo/Poupança (50/30/20). Só faz sentido em EXPENSE.
   nature CategoryNature?
 
+  /// Pote dos 6 potes. Só faz sentido em EXPENSE; null = deriva da natureza.
+  pot Pot?
+
   parentId String?
   parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
   children Category[] @relation("CategoryHierarchy")
@@ -204,6 +219,57 @@ model SavingsGoal {
   updatedAt DateTime @updatedAt
 
   @@map("savings_goals")
+}
+
+// ----------------------------------------------------------------------------
+// Debt
+// ----------------------------------------------------------------------------
+
+/// Dívida parcelada para o plano de quitação (bola de neve x avalanche em
+/// src/lib/financial-engine/debt-payoff.ts). É um retrato: `remaining` cai
+/// quando o usuário registra a parcela paga; o app não lê contratos.
+model Debt {
+  id String @id @default(uuid())
+
+  name           String
+  installment    Decimal @db.Decimal(12, 2)
+  remaining      Int
+  /// Juro ao mês em porcentagem (9.5 = 9,5% a.m.), como vem no contrato.
+  monthlyRatePct Decimal @db.Decimal(6, 3)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("debts")
+}
+
+// ----------------------------------------------------------------------------
+// PotAllocation
+// ----------------------------------------------------------------------------
+
+/// Percentual de cada pote sobre a entrada. Uma linha por pote; sem linhas,
+/// vale o padrão 50/10/10/10/10/10 (src/lib/financial-engine/pots.ts). A soma
+/// é validada na Server Action (100%).
+model PotAllocation {
+  pot     Pot     @id
+  percent Decimal @db.Decimal(5, 2)
+
+  updatedAt DateTime @updatedAt
+
+  @@map("pot_allocations")
+}
+
+// ----------------------------------------------------------------------------
+// InsightDismissal
+// ----------------------------------------------------------------------------
+
+/// Sugestão do painel "Próximos passos" que o usuário dispensou. O id é a
+/// chave estável da sugestão (src/lib/insights/suggestions.ts), não um uuid.
+model InsightDismissal {
+  id        String   @id
+  createdAt DateTime @default(now())
+
+  @@map("insight_dismissals")
 }
 
 // ----------------------------------------------------------------------------

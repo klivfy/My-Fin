@@ -182,3 +182,18 @@ export async function runAiCategorizationBatch(
   const remaining = await prisma.transaction.count({ where: UNCATEGORIZED_WHERE });
   return { status: "done", processed: candidates.length, categorized, pending: remaining };
 }
+
+const setPotSchema = z.object({
+  categoryId: z.string().uuid(),
+  pot: z.enum(["NECESSIDADES", "LIBERDADE", "LONGO_PRAZO", "INSTRUCAO", "DOACOES", "DIVERSAO"]).nullable(),
+});
+
+/** Define em qual dos 6 potes uma categoria de despesa mora (null = deriva da natureza). */
+export async function setCategoryPot(input: z.input<typeof setPotSchema>) {
+  const parsed = setPotSchema.parse(input);
+  await prisma.category.update({
+    where: { id: parsed.categoryId, type: "EXPENSE" },
+    data: { pot: parsed.pot },
+  });
+  revalidateDashboard();
+}

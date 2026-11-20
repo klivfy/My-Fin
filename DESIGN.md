@@ -56,3 +56,30 @@ Mesmo mundo do resto do app (modo Operar, tema claro, um acento). Regras própri
 * **Tabelas:** `tabular-nums`, números à direita, ativo como `th scope="row"`, rolagem horizontal só dentro da moldura. A de negócios usa células `px-3`, pregão como `dd/mm` e origem curta ("B3 · XP") para caber ao lado do painel em 1280px.
 * **Open Finance (Pluggy):** sem credenciais no servidor, a linha diz o que falta e não tem botão. Com credenciais: campo "Id do item no Pluggy" (label visível, mono por ser identificador) até existir conexão; depois, cada conexão com estado em texto (conectada, pede login de novo, falhou) e "Sincronizar agora". O resumo diz o que foi importado, o que já existia e o que ficou de fora (renda fixa, taxas). Origem na tabela: "Pluggy · corretora".
 * **Carregamento:** `loading.tsx` espelha o layout (cabeçalho, faixa de 4 números, linhas de tabela, painel) com `aria-busy`, sem spinner de página.
+
+## Dívidas (`/dividas`)
+
+* Plano de quitação, não promessa: a tela compara "só as parcelas", bola de neve (menor primeiro) e avalanche (maior juro primeiro) com o **mesmo orçamento mensal**, e mostra o custo e o prazo de cada um. Quem escolhe o método é o usuário; o padrão é o mais barato (no empate, bola de neve).
+* O veredito diz os dois lados em texto: quanto a avalanche economiza e quantos meses antes a bola de neve fecha a segunda dívida. Sem selo de "melhor".
+* O mínimo de cada dívida é a parcela inteira. A tela nunca sugere pagar o mínimo da fatura do cartão.
+* "Para quitar hoje" é estimativa (valor presente das parcelas) e diz isso. As premissas (desconto de juros ao adiantar, CDC art. 52 § 2º; tabela Price) ficam escritas no fim da página.
+* Extra mensal fica na URL (`?extra=`); o atalho "Usar a sobra real" usa a mesma sobra das metas de poupança e avisa para não contar duas vezes.
+* "Paguei 1" desconta uma parcela com confirmação; a última quita e tira a dívida do plano.
+* Tabelas com `relative` na moldura de rolagem: texto `sr-only` dentro da tabela não pode vazar a largura da página no celular.
+
+## 6 potes (em Orçamentos)
+
+* Os potes são uma **lente sobre as despesas já categorizadas**, não uma segunda contabilidade. Cada categoria de despesa mora num pote (seletor em Revisar); sem escolha, vale a natureza do 50/30/20 (Necessidade = Necessidades, Desejo = Diversão, Poupança = Liberdade financeira). Despesa sem pote e sem natureza aparece como "sem pote", nunca é chutada para um pote.
+* Potes de gasto têm teto ("ainda cabem" ou "passou"); potes de guardar têm piso ("faltam R$ X para guardar"). Alerta sempre com ícone e texto.
+* Diversão é teto, não obrigação de gastar. A tela não empurra o usuário a "zerar" o pote.
+* Percentuais editáveis (padrão 50/10/10/10/10/10), soma exata de 100% validada no cliente e no servidor. A divisão de uma entrada avulsa (`?entrada=`) usa o método do maior resto e fecha centavo por centavo.
+
+## Próximos passos (Visão geral)
+
+* Painel de **até 3 sugestões**, em lista de linhas (não cartões), logo abaixo do título. Cada linha tem o título com o valor em R$/mês, o **porquê escrito** com os números que o justificam, a tela onde agir e "Dispensar". Dispensada não volta até "Mostrar de novo".
+* A ordem é a **fila única da sobra** (`src/lib/insights/allocator.ts`), e a ordem é o argumento: reserva mínima (1 mês de custo essencial), dívidas acima de 1% a.m. pela avalanche, reserva completa (6 meses), dívidas baratas, metas, livre. A soma dos passos fecha exatamente o aporte sugerido (80% da sobra média).
+* Dado ruim vence tudo: abaixo de 2 meses completos ou de 80% do gasto categorizado, a única sugestão é consertar o dado, sem valor.
+* Investimento só por prioridade e classe (renda fixa para prazo curto, renda variável para o que fica anos parado). Nunca cita ativo, ticker ou rentabilidade; teste automático trava isso.
+* **Pontes** (`src/lib/insights/bridges.ts`): regras que cruzam telas fora da fila. Ordem final: urgentes (fatura de cartão vencida, trading com prejuízo enquanto há dívida acima de 1% a.m.), primeiro passo da fila, cortes (assinaturas acima de 3% da renda média e R$ 50), resto da fila, avisos (trading com dívida cara, limite de perda mensal maior que a sobra, renda variável na corretora com reserva abaixo de 6 meses). Dado ruim continua sozinho.
+* Orçamentos: "cabem R$ X/dia" desconta as recorrentes da categoria ainda não pagas no mês e diz quanto reservou. Potes: transferência de conta corrente para poupança ou corretora conta como aporte em Liberdade financeira.
+* Metas e Dívidas leem a fatia da fila (Dívidas usa a fatia das dívidas como extra sugerido, Metas mostra o split). Nenhuma tela sugere a sobra inteira por conta própria.

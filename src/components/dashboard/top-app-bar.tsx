@@ -26,8 +26,8 @@ export function TopAppBar({
 }) {
   const pathname = usePathname();
   const trading = ["/trading", "/investimentos"].some((p) => pathname === p || pathname.startsWith(`${p}/`));
-  // Telas que não dependem de período (risco do dia, carteira acumulada).
-  const showPeriod = pathname !== "/trading/risco" && pathname !== "/investimentos";
+  // Telas que não dependem de período (risco do dia, carteira acumulada, plano de dívidas).
+  const showPeriod = !["/trading/risco", "/investimentos", "/dividas"].includes(pathname);
 
   return (
     <header className="sticky top-0 z-30 flex min-h-14 items-center gap-3 border-b border-outline-variant bg-surface px-4 py-2.5 sm:px-6">

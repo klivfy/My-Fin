@@ -19,7 +19,14 @@ const STATUS: Record<GoalView["status"], { label: string; className: string } | 
 };
 
 /** Metas de poupança dimensionadas pela sobra real, com marcos de 25/50/75/100%. */
-export function GoalsSection({ data }: { data: GoalsData }) {
+export interface SurplusSplit {
+  reserve: number;
+  debts: number;
+  goals: number;
+  free: number;
+}
+
+export function GoalsSection({ data, split }: { data: GoalsData; split?: SurplusSplit | null }) {
   const { surplus, emergencyFund, goals, linkableAccounts } = data;
   const contribution = surplus?.contribution ?? 0;
 
@@ -63,6 +70,16 @@ export function GoalsSection({ data }: { data: GoalsData }) {
               ) : (
                 <p className="text-xs text-expense">
                   Sem sobra nos últimos meses: antes de uma meta, veja os cortes sugeridos na regra 50/30/20 acima.
+                </p>
+              )}
+              {split && contribution > 0 && (split.reserve > 0 || split.debts > 0) && (
+                <p className="text-xs text-on-surface-variant">
+                  A fila da sobra manda primeiro para reserva e dívidas caras. Desse aporte:{" "}
+                  <span className="font-medium text-on-surface tabular-nums">{formatBRL(split.reserve)}</span> reserva,{" "}
+                  <span className="font-medium text-on-surface tabular-nums">{formatBRL(split.debts)}</span> dívidas,{" "}
+                  <span className="font-medium text-on-surface tabular-nums">{formatBRL(split.goals)}</span> metas,{" "}
+                  <span className="font-medium text-on-surface tabular-nums">{formatBRL(split.free)}</span> livres. Os
+                  prazos abaixo supõem o aporte inteiro nas metas.
                 </p>
               )}
               {emergencyFund && goals.length === 0 && (

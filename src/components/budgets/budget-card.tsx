@@ -49,6 +49,25 @@ export function BudgetCard({ budget }: { budget: BudgetView }) {
 
         <p className="text-xs text-on-surface-variant">
           {formatPercent(budget.progressPct, 0)} do orçamento usado
+          <span className="mx-1.5" aria-hidden>
+            ·
+          </span>
+          {budget.spent > budget.budgetLimit ? (
+            <span className="font-medium text-expense">
+              passou {formatBRL(budget.spent - budget.budgetLimit)} do teto
+            </span>
+          ) : (
+            <>
+              cabem <span className="font-medium text-on-surface tabular-nums">{formatBRL(budget.perDayLeft)}/dia</span>{" "}
+              {budget.daysLeft === 1 ? "hoje" : `nos ${budget.daysLeft} dias que faltam`}
+              {budget.pendingBills > 0 && (
+                <>
+                  , depois de reservar{" "}
+                  <span className="tabular-nums">{formatBRL(budget.pendingBills)}</span> em contas a vencer
+                </>
+              )}
+            </>
+          )}
         </p>
       </CardContent>
     </Card>

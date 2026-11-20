@@ -1,4 +1,4 @@
-import type { CategoryNature } from "@prisma/client";
+import type { CategoryNature, Pot } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export const REVIEW_PAGE_SIZE = 50;
@@ -19,6 +19,7 @@ export interface ReviewCategory {
   type: "INCOME" | "EXPENSE";
   color: string | null;
   nature: CategoryNature | null;
+  pot: Pot | null;
 }
 
 export interface ReviewRule {
@@ -56,7 +57,7 @@ export async function getReviewData(): Promise<ReviewData> {
     }),
     prisma.category.findMany({
       orderBy: [{ type: "asc" }, { name: "asc" }],
-      select: { id: true, name: true, type: true, color: true, nature: true },
+      select: { id: true, name: true, type: true, color: true, nature: true, pot: true },
     }),
     prisma.categorizationRule.findMany({
       orderBy: { pattern: "asc" },

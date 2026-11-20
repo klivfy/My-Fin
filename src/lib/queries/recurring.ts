@@ -15,6 +15,7 @@ const LOOKBACK_MONTHS = 13;
 export interface RecurringItem {
   key: string;
   name: string;
+  categoryId: string | null;
   cadence: Cadence;
   confidence: Confidence;
   categoryName: string | null;
@@ -82,6 +83,7 @@ export async function getRecurringData(now = new Date()): Promise<RecurringData>
   const toItem = (r: Recurrence): RecurringItem => ({
     key: r.key,
     name: r.name,
+    categoryId: r.categoryId,
     cadence: r.cadence,
     confidence: r.confidence,
     categoryName: r.categoryId ? (categoryNames.get(r.categoryId) ?? null) : null,

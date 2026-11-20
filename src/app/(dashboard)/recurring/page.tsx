@@ -7,9 +7,9 @@ import { formatBRL, formatDateShort } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const STATUS: Record<CalendarItem["status"], { label: string; className: string }> = {
-  PAID: { label: "Pago", className: "bg-income-container text-income-on-container" },
-  UPCOMING: { label: "A vencer", className: "bg-surface-container-highest text-on-surface-variant" },
-  OVERDUE: { label: "Atrasado?", className: "bg-expense-container text-expense-on-container" },
+  PAID: { label: "Pago", className: "text-income" },
+  UPCOMING: { label: "A vencer", className: "text-on-surface-variant" },
+  OVERDUE: { label: "Atrasado?", className: "text-expense" },
 };
 
 const CONFIDENCE: Record<RecurringItem["confidence"], { label: string; title: string }> = {
@@ -24,7 +24,7 @@ function ConfidenceChip({ confidence }: { confidence: RecurringItem["confidence"
     <span
       title={config.title}
       aria-label={config.title}
-      className="inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-outline-variant text-[10px] font-semibold text-on-surface-variant"
+      className="inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-outline-variant text-xs font-semibold text-on-surface-variant"
     >
       {config.label}
     </span>
@@ -68,7 +68,7 @@ export default async function RecurringPage() {
                     <p className="text-lg font-semibold leading-none text-on-surface tabular-nums">
                       {new Date(entry.expectedDate).getUTCDate()}
                     </p>
-                    <p className="text-[10px] text-on-surface-variant">
+                    <p className="text-xs text-on-surface-variant">
                       {entry.cadence === "ANNUAL" ? "anual" : "todo mês"}
                     </p>
                   </div>
@@ -90,7 +90,7 @@ export default async function RecurringPage() {
                       {entry.status === "PAID" ? "" : "~"}
                       {formatBRL(entry.amount)}
                     </span>
-                    <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", STATUS[entry.status].className)}>
+                    <span className={cn("text-xs font-medium", STATUS[entry.status].className)}>
                       {STATUS[entry.status].label}
                     </span>
                   </div>

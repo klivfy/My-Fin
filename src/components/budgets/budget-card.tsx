@@ -19,8 +19,8 @@ export function BudgetCard({ budget }: { budget: BudgetView }) {
         {(budget.isAcceleratedBurn || overBudget) && (
           <span
             className={cn(
-              "flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
-              overBudget ? "bg-expense-container text-expense-on-container" : "bg-transfer-container text-transfer-on-container",
+              "flex items-center gap-1 text-xs font-medium",
+              overBudget ? "text-expense" : "text-transfer",
             )}
           >
             <AlertTriangle className="size-3" />

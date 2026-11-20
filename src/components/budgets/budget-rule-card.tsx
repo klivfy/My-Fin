@@ -115,8 +115,8 @@ function BucketRow({
             </span>
             <span
               className={cn(
-                "rounded-full px-2 py-0.5 text-[10px] font-medium",
-                onTrack ? "bg-income-container text-income-on-container" : "bg-expense-container text-expense-on-container",
+                "text-xs font-medium",
+                onTrack ? "text-income" : "text-expense",
               )}
             >
               {onTrack ? "Na meta" : config.higherIsBetter ? "Abaixo" : "Acima"}

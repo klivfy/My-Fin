@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { addGoalContribution, deleteGoal } from "@/actions/goals";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { GoalDialog, type GoalFormValues } from "@/components/goals/goal-dialog";
 
 /** Ações de uma meta: registrar aporte/retirada (sem conta vinculada), editar e excluir. */
@@ -22,18 +23,22 @@ export function GoalActions({
 }) {
   const [pending, startTransition] = useTransition();
 
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   function handleDelete() {
-    if (!window.confirm(`Excluir a meta "${goal.name}"? O dinheiro guardado não é afetado.`)) return;
+    setDeleteError(null);
     startTransition(async () => {
       try {
         const result = await deleteGoal({ id: goal.id });
         if (!result.ok) {
-          toast.error(result.error);
+          setDeleteError(result.error);
           return;
         }
+        setConfirmOpen(false);
         toast.success("Meta excluída.");
       } catch {
-        toast.error("Erro ao excluir.");
+        setDeleteError("Erro ao excluir. Tente de novo.");
       }
     });
   }
@@ -50,9 +55,19 @@ export function GoalActions({
           </Button>
         }
       />
-      <Button size="icon" variant="ghost" onClick={handleDelete} disabled={pending} aria-label={`Excluir ${goal.name}`}>
+      <Button size="icon" variant="ghost" onClick={() => { setDeleteError(null); setConfirmOpen(true); }} disabled={pending} aria-label={`Excluir ${goal.name}`}>
         <Trash2 className="size-4" />
       </Button>
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={`Excluir a meta "${goal.name}"?`}
+        description="O dinheiro guardado não é afetado."
+        confirmLabel="Excluir meta"
+        pending={pending}
+        error={deleteError}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

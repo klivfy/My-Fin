@@ -88,7 +88,7 @@ export function CreditCardModule({
                 style={{ width: `${cycleProgressPct * 100}%` }}
               />
             </div>
-            <div className="flex justify-between text-[11px] text-on-surface-variant">
+            <div className="flex justify-between text-xs text-on-surface-variant">
               <span>Fecha {formatDateShort(currentInvoice.closingDate)}</span>
               <span>Vence {formatDateShort(currentInvoice.dueDate)}</span>
             </div>
@@ -131,7 +131,7 @@ export function CreditCardModule({
             <div className="h-full bg-transfer" style={{ width: `${(futureCommitted / limit) * 100}%` }} />
             <div className="h-full bg-income/40" style={{ width: `${((available ?? 0) / limit) * 100}%` }} />
           </div>
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-on-surface-variant">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-on-surface-variant">
             <span>Fatura atual: {formatPercent(currentInvoiceTotal / limit, 0)}</span>
             <span>Parcelado: {formatPercent(futureCommitted / limit, 0)}</span>
             <span>Disponível: {formatPercent((available ?? 0) / limit, 0)}</span>
@@ -154,7 +154,7 @@ export function CreditCardModule({
                 <li key={group.rootId} className="flex items-center justify-between text-sm">
                   <span className="truncate pr-2 text-on-surface">{group.description}</span>
                   <div className="flex shrink-0 items-center gap-2">
-                    <Badge variant="outline" className="text-[10px]">
+                    <Badge variant="outline" className="text-xs">
                       Parcela {group.paidCount} de {group.totalInstallments}
                     </Badge>
                     <Money value={-Number(group.installmentAmount)} tone="expense" showSign={false} className="text-xs" />
